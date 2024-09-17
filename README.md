@@ -249,14 +249,20 @@ data = pd.get_dummies(data, columns=['dataset', 'cp'])
 ```
 
 **3. Handling of Missing Values** 
-While GBT algorithms like XGBoost can handle missing values internally as I mentioned earliier, it is generally good practice to deal with missing values as part of the data preprocessing step. As the three columns that have missing values (i.e., trestbps, chol, and fbs) are all continuous and the missing percentages are not that high, although of the columns has 10% missing, I will use  a mean imputation technique. 
+While GBT algorithms like XGBoost can handle missing values internally as I mentioned earliier, it is generally good practice to deal with missing values as part of the data preprocessing step. As the two columns that have missing values (i.e., trestbps and chol) are all continuous and the missing percentages are not that high, I will use  a mean imputation technique. For 'fbs', which is categorial, I will use mode for imputation. 
 
 ```ruby
 
 # Perform mean imputation for the columns 'trestbps', 'chol', and 'fbs'
 data['trestbps'].fillna(data['trestbps'].mean(), inplace=True)
 data['chol'].fillna(data['chol'].mean(), inplace=True)
-data['fbs'].fillna(data['fbs'].mean(), inplace=True)
+
+# Calculate the mode of the 'fbs' column
+fbs_mode = data['fbs'].mode()[0]
+
+# Impute missing values with the mode
+data['fbs'].fillna(fbs_mode, inplace=True)
+
 
 ```
 
@@ -323,6 +329,157 @@ Class imbalance for preddictors is not typically a concern. Features can have va
 
 If there are categorical predictors with rare categories (e.g., you have many White and Black for the race variable more than Asian and Native Inidians), it might not be considered a class imbalance issue but rather a data sparsity issue. You can handle this by combining rare categories together or using specialized encoding techniques like target encoding.
 
+**9. Data Type**
+XGBoost and most machine learning algorithms require numerical input data. For this specific dataset, after the one-hot encoding function, several variables are coded as boolen. I will convert those binary boolean variables to numerical binary (e.g., 0 and 1) before using them in XGBoost.
+```ruby
+
+# List of boolean columns to convert to numerical binary
+boolean_columns = [
+    'dataset_Cleveland', 
+    'dataset_Hungary', 
+    'dataset_Switzerland', 
+    'dataset_VA Long Beach',
+    'cp_asymptomatic', 
+    'cp_atypical angina', 
+    'cp_non-anginal', 
+    'cp_typical angina',
+    'restecg_lv hypertrophy',        
+    'restecg_normal',
+    'restecg_st-t abnormality'
+    
+]
+
+# Convert the boolean columns to numerical (0 and 1)
+data[boolean_columns] = data[boolean_columns].astype(int)
+
+```
+
+Certain features like 'sex' is coded as 'object' in the original dataset. It needs to be to be converted to numeric. 
+```ruby
+
+
+# Convert 'sex' column to numeric: Female -> 0, Male -> 1
+data['sex'] = data['sex'].map({'Female': 0, 'Male': 1})
+
+```
+
+Some variables such as slope, exang, and thal are incldued in the dataset but the data dictionary on Kaggle doe not provide the definition of what those variables are. So I removed them for now from the future analysis.
+
+```ruby
+data = data.drop(columns=['slope', 'exang', 'thal', 'oldpeak', 'ca'])
+```
+
+
+## Modeling 
+
+Now that we have done  the data cleaning, let's perform the XGBoost. In total afrer the data preparation, we have 17 predictors , excluding the ID column, and one outcome ('num') and 920 patients. To prevent overfitting as we have relatively small dataset, I’ll use parameters like max_depth, eta (learning rate), subsample, and colsample_bytree to control model complexity and reduce overfitting.
+
+1. Let's begin with importing the necessary libraries and prepare the data for a training and  testing set
+   
+```ruby
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import xgboost as xgb
+
+X = data.drop(columns=['id', 'num'])  # Predictors (all columns except 'id' and 'num')
+y = data['num']  # Outcome variable
+
+# Split the data into training and testing sets (80-20 split)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+```
+
+2. I will then set up XGBoost regressor with hyperparameters to prevent overfitting. Now to know which parameter values work best, we will rely on our good old friend,cross validation, which I have talked about multiple times in my previous post. 
+To briefly explain, cross-validation helps in choosing hyperparameters that generalize well to unseen data, reducing the risk of overfitting (model too complex) or underfitting (model too simple).  Boosting algorithms like XGBoost are powerful and can easily overfit if hyperparameters are not carefully tuned. To find the best combination of hyperparameters, we can use techniques like Grid Search in conjunction with cross-validation to test different parameter values.
+
+
+```ruby
+# Set up the initial XGBoost regressor
+xgboost_regressor = xgb.XGBRegressor(random_state=42)
+
+# Define the parameter grid for hyperparameter tuning
+param_grid = {
+    'max_depth': [3, 4, 5, 6],              # Different depths of trees
+    'learning_rate': [0.01, 0.05, 0.1, 0.2], # Different learning rates
+    'n_estimators': [50, 100, 150, 200],     # Different numbers of trees
+
+}
+
+# Set up GridSearchCV with 5-fold cross-validation
+grid_search = GridSearchCV(
+    estimator=xgboost_regressor,
+    param_grid=param_grid,
+    scoring='neg_mean_squared_error',  # Use negative MSE as the scoring metric for regression
+    cv=5,                              # 5-fold cross-validation
+    verbose=1,                         # Output progress
+    n_jobs=-1                          # Use all available cores
+)
+```
+
+To further explain how does the code above work, you can see that The parameter grid defines all combinations of hyperparameters that we want to test. For our  grid:
+    max_depth: [3, 4, 5, 6] (4 values)
+    learning_rate: [0.01, 0.05, 0.1, 0.2] (4 values)
+    n_estimators: [50, 100, 150, 200] (4 values)
+   
+
+Based on the values, we have 4×4×4= 64 combinations in total. 
+
+For the cross validation process, cv=5 specifies 5-fold cross-validation. This means that the dataset is split into 5 equal parts (folds). In each iteration, 4 folds are used for training the model, and the remaining 1 fold is used for validation (testing). This process is repeated 5 times so that each fold gets a chance to be the validation set. For each of the 64 combinations of hyperparameters, the model is trained and validated 5 times (once for each fold in the 5-fold cross-validation). For each combination of hyperparameters, GridSearchCV calculates the mean of the performance metric (in this case, negative Mean Squared Error, neg_mean_squared_error) across all 5 folds.
+
+Note that the "neg" prefix indicates that scikit-learn uses negative values because it aims to maximize the score. Since we want to minimize MSE, the model with the highest (least negative) value is the best. 
+
+For example, the irst hyperparameter combination is max_depth=3, learning_rate=0.01, n_estimators=50, subsample=0.8, colsample_bytree=0.8.  The dataset is split into 5 folds. The model is then trained on folds 1-4, and fold 5 is used for validation. The MSE is calculated. The model is trained on folds 1, 2, 3, 5, and fold 4 is used for validation. The MSE is calculated. This process is repeated until each fold is used as the validation set once. The average MSE across these 5 iterations is calculated for this hyperparameter combination. The same thing happens for the second till the lasy hyperparameter combination. In total, we would have 320 iterations (64 combinations × 5 folds).
+
+3. The next step is to run the GridSearchCV on the training data (X_train and y_train) to find the best combination of hyperparameters from the specified param_grid. Then I fit the model using GridSearchCV and get the best parameters and model.
+```ruby
+# Fit the model using GridSearchCV
+grid_search.fit(X_train, y_train)
+
+# Get the best parameters and model
+best_params = grid_search.best_params_
+best_model = grid_search.best_estimator_
+```
+4. Then, I get the best parameters and model
+```ruby
+best_params = grid_search.best_params_
+best_model = grid_search.best_estimator_
+
+print(f"Best parameters: {best_params}")
+```
+I found that the best parameters are as follows: {'learning_rate': 0.05, 'max_depth': 3, 'n_estimators': 50}
+
+5. Now that we get the best parameters estimates for our training data, let's evaluate the model ebuilt using the best parameters found by GridSearchCV.
+Here, I evaluate the model based on the training data first to see if is potentially overfitting. Then, I will evaluate the model on the test set to evaluate the model's performance on unseen data.
+
+```ruby
+best_params = grid_search.best_params_
+best_model = grid_search.best_estimator_
+
+print(f"Best parameters: {best_params}")
+```
+
+6. Let's take a look at the performance matrix.
+```ruby
+best_params = grid_search.best_params_
+best_model = grid_search.best_estimator_
+
+print(f"Best parameters: {best_params}")
+```
+
+In the code snippet above, train_mse and test_mse represent the Mean Squared Error (MSE) on the training and test sets, respectively. A significant difference between train_mse and test_mse might indicate overfitting. train_r2 and test_r2 represent the R-squared score for the training and test sets, respectively. Ideally, these scores should be reasonably close, with a high value indicating that the model explains a large portion of the variance in the data.
+
+7. Now let's interpret the findings.  I have got Training MSE: 0.7160, R2: 0.4508 and Testing MSE: 0.7621, R2: 0.4131. The Training MSE (0.7160) and Testing MSE (0.7621) are relatively close to each other, indicating that the model performs similarly on both the training and test sets. Similarly, the Training R² (0.4508) and Testing R² (0.4131) are close, suggesting that the model has not memorized the training data excessively (which would be a sign of overfitting).
+
+The R² values for both training and testing sets are relatively low, which indicates that the model is not capturing a significant amount of the variance in the data. According to the performance matrix. There is a likelikood that the current model is underfitting. This is not surprised consideirng that the model could be too simple to capture the underlying patterns in the data. The close MSE and R² values between training and testing also imply that the model is not overfitting, but rather it is underfitting.
+
+## Model Improvement 
+
+According to  the results, there are a few things that I can do.
+
+1. Feature Engineering and Hyperparameter Tuning. 
+
+We can try expanding the range of the max_depth or n_estimators parameters in the grid search function, which may allow to the functiion find better combinations of parameters.
+
+2. Use More Advanced Models:
 
 ## Conclusion
 
