@@ -225,6 +225,105 @@ The individual trees in GBTs are usually shallow (typically not more than 40 lea
 3. **Regularization Techniques:**  
 In addition to the learning rate, GBTs can be regularized through other techniques, such as subsampling the training data (also known as stochastic gradient boosting) and controlling the complexity of the trees (e.g., limiting tree depth, minimum samples per leaf). These techniques help prevent overfitting to the training data, especially when dealing with large datasets.
 
+## Example 
+
+Now that you have a strong foundation of what GBT is, let's take a look at the real world example. I use this dataset from Kaggle: https://www.kaggle.com/datasets/redwankarimsony/heart-disease-data. This dataset consists of 14 attributes which are age, sex, chest pain type, resting blood pressure, serum cholesterol, fasting blood sugar, resting electrocardiographic results, maximum heart rate achieved, exercise-induced angina, oldpeak — ST depression induced by exercise relative to rest, the slope of the peak exercise ST segment, number of major vessels and Thalassemia. I recommend you to go to the link and read more in detail about what is the dataset about. Here, we will use all of the predictors for a regression task. The target column is num column consisting of 5 levels including 0 = no heart disease, 1 = mild heart disease, 2 = moderate heart disease, 3 = severe heart disease, and 4 = critical heart disease. The dataset is not large as we have 16 x 920. 
+
+There are many libraries that can be used to perform GBT for regression. I will use XGBoost today because of the following reasons. First, the algorithm is is known for its speed, efficiency, and performance. Second, XGBoost can automatically handle missing values by learning the optimal path for missing data during training. Thus, we don't have to bother dealing with missing values, which are present in certain columns of the dataset, although I encourage you to deal with missing values first to increase the model performance if you have some time. Third,  XGBoost supports parallel processing, making it faster compared to traditional gradient boosting methods. Finally, the algorithm supports both classification and regression tasks. I will perform both of them in this demo.
+
+There are other libraries out there available for GBT such as LightGBM, developed by Microsoft, which is designed to be highly efficient, especially for large datasets.  Another interesgting libray is CatBoost, which particularly useful for datasets with categorical features as we do not need to do any extensive preprocessing (like one-hot encoding). The library also provides strong regularization to avoid overfitting. Since our dataset today is small and does not feature much of categorial variables, I opted for XGBoost.
+
+## Data Preparation 
+ Before we get started, we have to make sure first that the dataset meets of all the assumptions needed by GBT, although not many are there compared to other algorithms like linear regressions. 
+
+**1. Data Distribution**
+GBT does not require any specific assumptions about the distribution of the data (e.g., normality, homoscedasticity, linearity). GBT models can capture complex, non-linear relationships between features and the target variable, making them highly flexible and robust for a wide range of data types. Thus, there is no need to prepare the data for data distribution assumption.  There is also no need to check for  multicollinearity as GBT models are decision tree-based, meaning they split data based on feature values rather than fitting coefficients to predictors as in linear regression. Tree-based models are generally robust to multicollinearity because they do not assume independence among predictors. Instead, they select the most important features at each split, reducing the impact of correlated features. Thus, if two features are highly correlated, the model will likely choose one over the other based on how much they reduce the loss function (e.g., Mean Squared Error for regression tasks).
+
+However, note that  independence of observations is still assumption that needs to be met in GBT like other machine learning models, althiugh the algorithm can handle highly correlated features. If there is dependency among observations (e.g., time series data), additional steps such as feature engineering or adding lag variables are necessary. This is not for our current dataset, which is cross-sectional.
+
+**2. Handling of Feature Types**
+For the library that we use today like XGBoost, categorical variables need to be encoded (e.g., one-hot encoding, label encoding) before training. We have the 'dataset' variable, which indicates location of data collection (3 levels), and 'cp', which indicates chest pain type with three levels. So, we will start with one-hot encode those variable first. 
+
+```ruby
+data = pd.get_dummies(data, columns=['dataset', 'cp']) 
+```
+
+**3. Handling of Missing Values** 
+While GBT algorithms like XGBoost can handle missing values internally as I mentioned earliier, it is generally good practice to deal with missing values as part of the data preprocessing step. As the three columns that have missing values (i.e., trestbps, chol, and fbs) are all continuous and the missing percentages are not that high, although of the columns has 10% missing, I will use  a mean imputation technique. 
+
+```ruby
+
+# Perform mean imputation for the columns 'trestbps', 'chol', and 'fbs'
+data['trestbps'].fillna(data['trestbps'].mean(), inplace=True)
+data['chol'].fillna(data['chol'].mean(), inplace=True)
+data['fbs'].fillna(data['fbs'].mean(), inplace=True)
+
+```
+
+**4. Handling of Outliers**
+GBT algorithms are relatively robust to outliers, especially compared to linear models. However, extreme outliers can still impact model performance by creating overly specific splits. Note that when I talked about outliers, the focus is generally on continuous predictors, not categorical predictors. To check for outliers, I will use  the Interquartile Range (IQR). Outliers are values that lie below Q1 - 1.5 * IQR or above Q3 + 1.5 * IQR, where Q1 is the first quartile and Q3 is the third quartile. Then I will use boxplotsto visualize the outliers.
+
+
+```ruby
+
+import matplotlib.pyplot as plt
+
+# List of columns to check for outliers
+columns_to_check = ['age', 'trestbps', 'chol', 'thalch', 'num']
+
+# Use descriptive statistics (IQR) to identify potential outliers
+for column in columns_to_check:
+    Q1 = data[column].quantile(0.25)
+    Q3 = data[column].quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    # Find outliers
+    outliers = data[(data[column] < lower_bound) | (data[column] > upper_bound)]
+
+    # Print outliers information
+    print(f"Column: {column}")
+    print(f"Number of outliers: {len(outliers)}")
+    print(f"Outliers:\n{outliers[column].values}")
+    print("-----------------------------------------------------")
+
+# Visualize the data using boxplots for continuous columns
+for column in columns_to_check:
+    plt.figure(figsize=(10, 4))
+    plt.boxplot(data[column].dropna(), vert=False)
+    plt.title(f'Boxplot of {column}')
+    plt.xlabel(column)
+    plt.show()
+
+```
+
+The output indicate zero outliers for age, 28 for trestbps,  185 for chol, 2 for thalch, and 0 for num. The one with the highest outlier is chol. The rest is neglible. I decided to not do anything with the outliers of cholesterol level as the data realistically represent people at risk of the heart diseases -- a number of them woukd have extremely high choresterol level (see the box plot below). Thus, you have to asnwer yourself if you need to do anything for outliers in your own project, using previous litrature or the project objective as the guidances. 
+
+
+
+![Screenshot 2024-09-17 at 4 22 22 PM](https://github.com/user-attachments/assets/3a76a2d2-b95a-4dbc-aa56-9bdf332d0599)
+
+**5. Sufficient Sample Size**
+While GBTs can perform well with smaller datasets, having a sufficient sample size is important to build robust models. Extremely small sample sizes can lead to overfitting, while large datasets generally benefit from the boosting process to improve model accuracy. In our case, the data set is on the smaller side. To prevent overfitting, I will deal limit and fine-tune some paramaters as you will see later.
+
+**6. Feature Scaling** 
+Unlike other algorithms such as KNN, GBT models do not require feature scaling (e.g., standardization, normalization) because they are based on decision trees, which split based on feature values rather than their magnitudes. However, scaling may still be useful in cases where features have vastly different ranges and could affect interpretability or the influence of certain features in the model.
+
+**7. Feature Engineering**
+
+Like other algorithms, you may create new features that capture non-linear relationships or interactions between variables. This can further enhance the predictive power of GBT models. These newly created variables should be also informed by previous lietrature or rigurous concepts. Since I am not a researcher in heart disease, I will ignore the procees  and focus on only existing varibales for now.
+
+**8. Class Imbalance**
+
+If you work with GBT for classificaiton tasks, checking if you are dealing with imbalanced classes in the ouctome is critical. If you encounter the issue, consider using techniques like SMOTE (Synthetic Minority Over-sampling Technique), undersampling, or adjusting class weights to improve model performance. I have explained more about what class imbalance is anmd how to deal with the situatation in this post. 
+
+Class imbalance for preddictors is not typically a concern. Features can have varying distributions, and that's generally acceptable. The focus should be on whether these features are useful and predictive of the outcome variable.
+
+If there are categorical predictors with rare categories (e.g., you have many White and Black for the race variable more than Asian and Native Inidians), it might not be considered a class imbalance issue but rather a data sparsity issue. You can handle this by combining rare categories together or using specialized encoding techniques like target encoding.
+
+
 ## Conclusion
 
 Now that you have learned how GBT works and practiced with a real world exmaple, it's clear that the algorithm offers several advantages:
@@ -244,5 +343,6 @@ Now that you have learned how GBT works and practiced with a real world exmaple,
 Overall, GBTs are powerful, flexible, and widely applicable for many predictive modeling tasks, offering a balance between simplicity, interpretability, and predictive performance.
 
 
+For the full code snippets, please feel free to visit my GitHub page
 
 
