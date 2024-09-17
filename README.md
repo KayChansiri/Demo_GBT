@@ -129,5 +129,120 @@ The concept I explained above is applicable to building all next trees in the bo
 
 ### 2. GBT for Classification
 
+To understand gradient boosting for classification, we need to first grasp the concepts of log odds (logit), odds, probability, and log likelihood. These are foundational concepts of logistic regression, which I explained in a previous post.
+
+Let’s breifly discuss these concepts. For binary outcomes (e.g., yes/no, true/false), a linear algorithm cannot be directly used to predict the outcome because the predictions might fall outside the intended boundary [0,1]. To restrict the predicted values within this range, we use functions like the sigmoid function. The sigmoid function is mathematically represented as below (note that *z* is the output of a linear regression equation, which can be represented as *B*<sub>*0* + *B*<sub>*1*</sub>*X*<sub>*1*</sub> + *B*<sub>*2*</sub>*X*<sub>*2*</sub> + ...
+
+<img width="252" alt="Screen Shot 2024-09-01 at 11 58 29 AM" src="https://github.com/user-attachments/assets/039a8314-f0c0-42cd-a46c-b5db8002d414">
+
+In the sigmoid function, a typical linear regression model is transformed such that its output values are constrained within the  [0,1] range. This transformation allows the output to be interpreted as a probability, as shown in the plot below.
+
+<img width="758" alt="Sigmoid Function" src="https://github.com/user-attachments/assets/47a8cd51-f8ef-4c50-b27b-4c949ab18c42">
+
+However, it is challenging to interpret this non-linear plot directly. For instance, you cannot determine exactly how a one-unit increase in the predictor results in a one-unit increase in *Y* because the relationship is not linear. Therefore, we apply the log function to transform the non-linear sigmoid output back into a linear form. This transformation is expressed as:
+
+<img width="249" alt="Logit(p)" src="https://github.com/user-attachments/assets/02ecc822-0ebc-4580-a50f-06aec399466f">
+
+In the equation,*p* is the probability obtained from the sigmoid function. After obtaining a linear function with log odds, it may still not be intuitive to interpret how a one-unit increase in *X* results in an increase in *Y* in terms of log odds. Therefore, we often convert log odds to an odds ratio, which essentially refers to the ratio of the probability of an event of interest happening to the probability of it not happening, given a one-unit increase in predictor *X*. Probability, log odds (logit), and odds ratios can be converted back and forth using the following equations:
+
+![Screen Shot 2024-09-17 at 12 23 39 PM](https://github.com/user-attachments/assets/a388fb2d-ebdd-461f-9b18-f76e80f4adc5)
+
+Now that you understand these concepts, let’s return to gradient boosting for classification.
+
+Unlike gradient boosting for regression, where the initial leaf is the average of the outcome, the initial leaf of gradient boosting for classification is the log odds (i.e., logit), which is equal to the logarithm of the probability of an event happening versus not happening, as explained earlier.
+Consider the same example of age and income predicting customer satisfaction, but this time the outcome is whether the customer is satisfied (1) or dissatisfied (0). Imagine we have 5 customers, and two of them are satisfied, as depicted in the table below:
+
+<img width="352" alt="Screen Shot 2024-09-17 at 12 38 53 PM" src="https://github.com/user-attachments/assets/d503aa2c-4c7d-4178-9c74-f62f7e4a6db1">
+
+
+
+The log of the odds can be calculated using the equation:
+
+<img width="553" alt="Log Odds (Logit)" src="https://github.com/user-attachments/assets/41e6f753-20e9-4a06-9d93-de1670cf8401">
+
+In our example, the log of the odds is:
+
+<img width="481" alt="Log Odds (Logit) = log" src="https://github.com/user-attachments/assets/4a973420-821e-4ff4-be3a-203f3ee8ca53">
+
+This logit value is our initial leaf. Now, you may wonder how we use the log odds to get the residual values so that we can use them to grow a tree when the values in our table are just 0 and 1. The answer is that we convert the log odds to a probability so that we can subtract the predicted probability from the actual observed values (0 or 1).
+If you recall the equations above, we can get the probability as:
+
+
+<img width="210" alt="1 + e0 4" src="https://github.com/user-attachments/assets/2f3d6351-fd79-4f33-b9df-6e0a56ebfe0f">
+
+Now that we have the probability as our initial leaf, we can calculate the residuals by subtracting the predicted probability from the actual observed values (0 or 1), just like we did in gradient boosting regression.
+
+
+<img width="676" alt="Screen Shot 2024-09-17 at 12 38 10 PM" src="https://github.com/user-attachments/assets/6acebd97-40ed-41d6-a7fb-cdce6a18bc5c">
+
+Similar to what we did earlier in gradient boosting for regression, these residuals will then be used to build our first tree using the same logic we used prevoiusly for GBT for regression. For example, if we want to use income to predict customer satisfaction, the algorithm evaluates various potential cut-off points (e.g., "income < 40,000", "income < 60,000", etc.) and selects the one that minimizes the Gini Index or Cross-Entropy, making the leaf nodes as "pure" as possible in terms of residuals. If "income < 50,000" is considered a potential cut-off point, the residuals of customers with an income below this threshold are considered in the split calculation. The goal is to find the split that results in more homogeneity in terms of their residuals. We can calculate this using the formula below: 
+
+
+<img width="501" alt="Gini = 1 - (probability of each class)2" src="https://github.com/user-attachments/assets/22b5583f-3742-44cc-9369-757ae888c356">
+
+If the split results in nodes where the residuals are closer to zero, it is considered a good split. The process involves iteratively adjusting the cut-off point until the leaf nodes are as pure as possible, meaning they contain residuals that are minimal and represent better predictions for the classification task. Let’s imagine the first tree we obtained is shown below:
+
+![output-6](https://github.com/user-attachments/assets/36830b57-65d2-4c71-b35f-4de15c7d882c)
+
+Note that for GBT tasks, residuals are referred to as "pseudo-residuals" because they represent the difference between the actual outcomes and the predicted residuals (i.e., averaged residuals for a regression task and probabilities for a classification task), rather than the difference between the actual and predicted values as in linear regression. A more technical way to explain this is that pseudo-residuals are derived from the gradient of the loss function used, such as the negative log-likelihood (log loss) or binary cross-entropy for classification tasks, and Mean Squared Error (MSE) for regression tasks.
+
+Now that we have the residuals as the final leaves of the tree and the initial leaf (e.g., −0.4), we can calculate the predicted probability for each customer.
+However, since the initial leaf is in the log of the odds (logit) form and the tree is built based on probabilities, we can't simply sum the log odds and residuals. As explained earlier, log odds and probabilities are two different representations.
+
+To address this issue, we need to perform some mathematical transformations. For each final leaf, we will plug its residual into the formula below to get the adjusted residuals in a form that allows us to combine the value with the initial leaf.
+
+<img width="671" alt="Adjusted Residual" src="https://github.com/user-attachments/assets/d49ea336-2261-47ff-a046-3a32b2adc817">
+
+Let's use Final Leaf 1 as an example and apply the formula to calculate the adjusted residual. Note that the previous probability for all customers in this leaf is 0.4 (see Table 2). Thus, for the numerator, we have 0.6+(−0.4)+(−0.4)=0.6−0.8 = −0.2. For the denominator, we calculate 0.4×0.6+0.4×0.6+0.4×0.6=0.72. Therefore, the adjusted residual for the first leaf is −0.2/0.72=−0.28. If you repeat this calculation for all final leaves, you will get a tree that looks like the one shown below:
+
+![output-7](https://github.com/user-attachments/assets/4272a8a3-47b1-4827-88dd-236286e7f699)
+
+Now, we have the final output for each leaf in a form that can be combined with the initial leaf, which is in the log-odds form. To do this, we can use the formula below.
+
+<img width="649" alt="New Log Odds - Initial Log Odds + (Learning Rate × Adjusted Residual)" src="https://github.com/user-attachments/assets/d6d3347b-185d-4220-96ee-648fae5cb0d4">
+
+For Customer 1, we calculate −0.4+(0.1×−0.28). Note that the learning rate can be fine-tuned, but I will use 0.1 for now just for demonstration purposes. We repeat this calculation for every customer to obtain the log-odds for each of them. Then, we convert the log-odds to probabilities so that we can subtract these probabilities from the previous probabilities in the table to get the new set of residuals, as shown in the table below:
+
+
+<img width="864" alt="Screen Shot 2024-09-17 at 1 00 19 PM" src="https://github.com/user-attachments/assets/e14359b9-c935-4450-b365-e7a5c6e4b49b">
+
+You may notice that the new residuals for some customers are smaller than their initial residuals. This indicates that we are on the right track. However, for certain customers, the new residuals are larger than the original ones. This is why we need to keep repeating the process until all residuals become sufficiently small or until we reach a maximum number of trees specified, indicating that further improvement is minimal. By controlling the learning rate and the number of trees, we can ensure that the model does not overfit the data and generalizes well to unseen data. The ultimate goal is to build a robust model that balances bias and variance. In the end, we will have *n* trees, where *n* is a parameter we fine-tune. 
+
+When we get a new, unseen data point, we will run it through every tree and then sum the final log-odds predictions **across all trees**, along with the initial leaf (-0.4), to obtain the final predicted log-odds for that specific data point. We then convert the log-odds into a probability to obtain the final prediction. Typically, we set the threshold at 0.5, meaning that if someone has a final probability greater than 0.5, their customer satisfaction will be coded as 1. If it is less than 0.5, it will be coded as 0.
+
+## Parameters to Fine-Tune in Gradient Boosted Trees 
+
+Now that you understand the concepts of how GBT for regression and classification work, let's talk more about which paramaters can be fine-tuned.
+
+1. **Learning Rate (Range between 0 and 1):**  
+
+GBTs include a learning rate (also known as shrinkage or step size) that scales the contribution of each tree. A smaller learning rate (closer to 0) requires more trees to model the data but often results in a more robust model that generalizes better to unseen data. A larger learning rate (closer to 1) may speed up the learning process but risks overfitting if the model captures too much noise from the training data. The choice of learning rate is a trade-off between the number of trees needed and the model's generalization ability.
+
+2. **Tree Depth:**  
+
+The individual trees in GBTs are usually shallow (typically not more than 40 leaves from what I have seen), ranging from 1 to a few levels deep. These shallow trees, again known as "weak learners," are not very powerful on their own but become highly effective when combined through the boosting process. Deeper trees provide more complex decision boundaries, leading to faster learning but also increasing the risk of overfitting, which adds more variance to the model. Conversely, shallower trees take smaller steps in learning (learning more slowly), requiring more iterations to capture the patterns in the data. However, they tend to reduce variance, leading to a more stable model. The optimal depth depends on the complexity of the underlying data.
+
+3. **Regularization Techniques:**  
+In addition to the learning rate, GBTs can be regularized through other techniques, such as subsampling the training data (also known as stochastic gradient boosting) and controlling the complexity of the trees (e.g., limiting tree depth, minimum samples per leaf). These techniques help prevent overfitting to the training data, especially when dealing with large datasets.
+
+## Conclusion
+
+Now that you have learned how GBT works and practiced with a real world exmaple, it's clear that the algorithm offers several advantages:
+
+1. **Reduced Data Preparation Tasks:**  
+   Since GBT uses decision trees as base learners, there is less need for extensive data preprocessing tasks, such as scaling or normalization, which are required by algorithms like K-Nearest Neighbors (KNN). GBTs handle different feature scales inherently well.
+
+2. **Controlled Model Complexity and Overfitting:**  
+   GBT allows for fine control over model complexity and helps prevent overfitting by adjusting parameters like the learning rate, tree depth, and regularization methods. This makes it suitable for both small and large datasets.
+
+3. **Flexibility Across Different Types of Outcomes:**  
+   The algorithm works with various types of target outcomes, including continuous, categorical, and ranking data, making it highly versatile for different types of machine learning problems.
+
+4. **More Accurate and Robust Predictions:**  
+   Like bagging methods, GBT produces a final model that is a weighted sum of all weak models (trees). This ensemble approach often results in more accurate predictions than a single decision tree because it reduces bias while maintaining a reasonable variance, thereby providing a more robust model.
+
+Overall, GBTs are powerful, flexible, and widely applicable for many predictive modeling tasks, offering a balance between simplicity, interpretability, and predictive performance.
+
+
 
 
