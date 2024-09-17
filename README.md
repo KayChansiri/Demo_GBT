@@ -64,16 +64,70 @@ Now that you understand the types of GBT and the relevant concepts, let’s star
 
 * The fundamental of GBT for regression is gradient descent. If you are not familiar with the concept, know that a gradient is a vector that points in the direction of the steepest increase of the loss function. The magnitude of this vector indicates how steep the slope is. In optimization, which is the basis of ML algorithms, we are interested in moving in the opposite direction of the gradient (the direction of the steepest decrease) to minimize the loss. This is why we focus on gradient 'descent' or the 'negative gradient.'
   
-* To better understand how GBT for regression works, let’s start with an initial standalone leaf as the most basic predicted value before we beginning to build a tree. Just like a typical linear regression model, the most basic thing that would us understand the outcome is the intercept. Like the concept of intercept, the initial leaf for GBT for regression is simply the average of the observed outcome across all samples in the dataset. For example, if you are building a model to predict customer satisfaction and the average satisfaction score across all customers is 3.5, the first predicted value or the initial leaf is 3.5. This values stands alone without being associated with any tree. For simplicity, imagine that your data looks like this:
+* To better understand how GBT for regression works, let’s start with an initial standalone leaf as the most basic predicted value before we beginning to build a tree. Just like a typical linear regression model, the most basic thing that would us understand the outcome is the intercept. Like the concept of intercept, the initial leaf for GBT for regression is simply the average of the observed outcome across all samples in the dataset. For example, if you are building a model to predict customer satisfaction and the average satisfaction score across all customers is 3.4, the first predicted value or the initial leaf is 3.4. This values stands alone without being associated with any tree. For simplicity, imagine that your data looks like this:
 
-<img width="796" alt="Screen Shot 2024-08-29 at 4 35 03 PM" src="https://github.com/user-attachments/assets/ffc0c404-1e3f-4eaf-82f7-dc7de1df1a79">
+<img width="643" alt="Screen Shot 2024-09-16 at 4 55 24 PM" src="https://github.com/user-attachments/assets/f05ececa-2155-47ea-b224-3cb1f577b43f">
 
-* For each data point, if we subtract the predicted happiness (i.e., 3.5) from the actual happiness scores, you get the residuals. These residuals in the Residual column represent the errors of the current model across customers.
+
+* For each data point, if we subtract the predicted satisfaction (i.e., 3.4) from the actual satisfaction scores, you get the residuals. These residuals in the Residual column represent the errors of the current model across customers.
+  
 * Now that we get the initial leaf and the residuals for all participants, let's build the first tree.
 
 > Note that unlike trees in Random Forest, the trees we build for GBT predict residuals NOT the observed data, which in this case is the actual customer satisfaction scores.
 
-* However, similar to a typical decision tree, at each node in this first tree of the GBT, the algorithm evaluates splits using predictors in the dataset, which could be demographic variables or any variables important for your project, to determine which split best reduces the loss function of the residuals. Again I said the residuals NOT the actual outcome scores. In this context where the outcome is continuous, the loss function is measured by mean squared error (MSE).
+* However, similar to a typical decision tree, at each node in this first tree of the GBT, the algorithm evaluates splits using predictors in the dataset, which could be demographic variables or any variables important for your project, to determine which split best reduces the loss function of the residuals. **Again I said the residuals** NOT **the actual outcome scores**. In this context where the outcome is continuous, the loss function is measured by mean squared error (MSE).
+  
 * For example, suppose we're considering a split on 'Income.' This first tree evaluates different split points (e.g., "Income < $50,000" vs. "Income ≥ $50,000"). For each possible split, it calculates the MSE of the residuals for the data points falling into the left and right child nodes after the split. The split value that results in the lowest total MSE for the residuals is chosen.
-* Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals NOT the actual customer satisfaction scores themselves. For instance, if the residuals for Group 1 (Income < $50,000) are [1.5,−0.5,2.0], the mean residual for this group would be 1.5 + (-0.5) + 2/3. Similarly, the algorithm computes the mean residual for Group 2 in the same way.  
+  
+* Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals NOT the actual customer satisfaction scores themselves. For instance, if the residuals for Group 1 (Income < $50,000) are [0.6,−0.4,−0.4], the mean residual for this group would be - 0.07. Similarly, the algorithm computes the mean residual for Group 2 in the same way.
+  
+* The algorithm then calculated the averaged residuals for each group (e.g.,-0.07 for the Group with income < $50,000 in this example). For each group, The algorithm calculates the Mean Squared Error (MSE) between the actual residuals and the predicted residuals, using the equation below as an example for Group 1:
+
+<img width="619" alt="Screen Shot 2024-08-29 at 4 50 31 PM" src="https://github.com/user-attachments/assets/6dd17a75-9367-4e38-b17b-c1b68c3735f4">
+
+
+The total MSE for this split is a weighted sum of the MSEs for each group: 
+
+<img width="466" alt="Screen Shot 2024-08-29 at 4 51 31 PM" src="https://github.com/user-attachments/assets/b400fb5a-84f3-4d65-bc7f-32497281cf5f">
+
+Here, *n1*  and  *n2*  are the number of samples in Group 1 and Group 2, and  *n* is the total number of samples. The split that results in the lowest Total MSE is chosen as the best split for that node. 
+
+* Now that we got the averaged residuals from tree 1, we will use the residuals to update the predicted value (i.e., customer satisfaction score) for each customer. Note that in the real world, you will likely have more than one node (i.e., more than the income variable) as the predictors. However, I will just build the first tree using only income as the predictor here for simplicity. To update the predicted value for each customer, you will just pass the data point down the tree according to the decision rules at each node, find the residual for that value, and sum it with the initial leaf value to obtain the new predicted value. 
+
+
+![Corrected_Income_Residual_Decision_Tree](https://github.com/user-attachments/assets/ff841cde-bccc-4548-ac45-f7a70e962e75)
+
+
+For example, for customer 1 in the table, their income is less than 50,000 and the averaged residual for them is -0.07. Thus, the new preidcted value is:
+
+New Predicted Value = Initial Leaf + (Averaged Residual from Tree *n*) = 3.4 + −0.07 . Now we do this for every customer and you wil get the updated table below: 
+
+
+
+<img width="777" alt="Screen Shot 2024-09-17 at 12 07 51 PM" src="https://github.com/user-attachments/assets/d8ee5d54-2e96-42d4-b60e-cbc5b4e590ae">
+
+
+Now, you may notice that the updated predicted values for certain customers such as customer number 5 (the predicted satisfaction score = 3.33) are closed to the observed value (3). Isn't this excellent? 
+
+The answer is no. We are facing an overfitting issue because Tree 1, as the model, learns too quickly to predict the observed values, leading to a poential lack of generalizability to new, unseen data. To fix this issue, we need to apply **a learning rate**, a hyperparameter that we can fine-tune and that ranges from 0 to 1. Lowering the learning rate can scale down the influence of each new tree, reducing the overfitting problem. The equation is as below: 
+
+New Predicted Value = Initial Leaf + (learning rate x Averaged Residual from Tree *n*)
+
+With a learning rate of 0.1, the updated predicted value for the first customer is  3.4 + 0.1(−0.07). We do this for every customer and get the updated table as below: 
+
+
+
+<img width="750" alt="Screen Shot 2024-09-17 at 11 42 15 AM" src="https://github.com/user-attachments/assets/6d5571d4-6e40-4373-9b4c-cbff522172a0">
+
+Now can see that the predicted values for tree 1 are less closer to the observed values yet still closer to the actual values than the initial predicted value (i.e., 3.4).
+
+With a lower learning rate, the model takes smaller steps toward reducing the loss, requiring more trees to reach a similar level of accuracy. This slower, more controlled process allows the model to capture underlying patterns gradually without fitting to noise. I often found that using more trees with a smaller learning rate can result in a model that generalizes better than a few large steps
+
+The concept I explained above is applicable to building all next trees in the boosting process. In other words, for each new tree, we calculate residuals based on the updated predicted values from the previous tree. Then we use these residuals to continue building trees, each time reducing the model's error further as an iteractive process. The final prediction for any customer is the sum of the initial leaf, adjusted by the weighted residuals from each tree:
+
+**Final Predicted Value=Initial Leaf+(Learning Rate×Residuals from Tree 1)+(Learning Rate×Residuals from Tree 2)+…**
+
+### 2. GBT for Classification
+
+
 
