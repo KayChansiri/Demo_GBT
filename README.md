@@ -233,7 +233,7 @@ There are many libraries that can be used to perform GBT for regression. I will 
 
 There are other libraries out there available for GBT such as LightGBM, developed by Microsoft, which is designed to be highly efficient, especially for large datasets.  Another interesgting libray is CatBoost, which particularly useful for datasets with categorical features as we do not need to do any extensive preprocessing (like one-hot encoding). The library also provides strong regularization to avoid overfitting. Since our dataset today is small and does not feature much of categorial variables, I opted for XGBoost.
 
-## Data Preparation 
+### Data Preparation 
  Before we get started, we have to make sure first that the dataset meets of all the assumptions needed by GBT, although not many are there compared to other algorithms like linear regressions. 
 
 **1. Data Distribution**
@@ -370,7 +370,7 @@ data = data.drop(columns=['slope', 'exang', 'thal', 'oldpeak', 'ca'])
 ```
 
 
-## Modeling 
+### Modeling (Regression)
 
 Now that we have done  the data cleaning, let's perform the XGBoost. In total afrer the data preparation, we have 17 predictors , excluding the ID column, and one outcome ('num') and 920 patients. To prevent overfitting as we have relatively small dataset, I’ll use parameters like max_depth, eta (learning rate), subsample, and colsample_bytree to control model complexity and reduce overfitting.
 
@@ -471,35 +471,157 @@ In the code snippet above, train_mse and test_mse represent the Mean Squared Err
 
 The R² values for both training and testing sets are relatively low, which indicates that the model is not capturing a significant amount of the variance in the data. According to the performance matrix. There is a likelikood that the current model is underfitting. This is not surprised consideirng that the model could be too simple to capture the underlying patterns in the data. The close MSE and R² values between training and testing also imply that the model is not overfitting, but rather it is underfitting.
 
-## Model Improvement 
+### Model Improvement 
 
-According to  the results, there are a few things that I can do.
+According to  the results, if things like this happen to your personal projects, there are a few things that you can do.
 
-1. Feature Engineering and Hyperparameter Tuning. 
+1. Feature Engineering and Hyperparameter Tuning
 
-We can try expanding the range of the max_depth or n_estimators parameters in the grid search function, which may allow to the functiion find better combinations of parameters.
+You can try expanding the range of the max_depth or n_estimators parameters in the grid search function, which may allow to the functiion find better combinations of parameters.
 
-2. Use More Advanced Models:
+2. Use More Advanced Models
 
-## Conclusion
+You may consider using more advanced models or algorithms that may capture the relationships in the data better, like gradient boosting with additional hyperparameters, or even other algorithms like Random Forests, Support Vector Machines, or Neural Networks, depending on the nature of your data. 
 
-Now that you have learned how GBT works and practiced with a real world exmaple, it's clear that the algorithm offers several advantages:
+For this demo, I will just end it here. Let's switch to a classification task to do some practice. 
 
-1. **Reduced Data Preparation Tasks:**  
-   Since GBT uses decision trees as base learners, there is less need for extensive data preprocessing tasks, such as scaling or normalization, which are required by algorithms like K-Nearest Neighbors (KNN). GBTs handle different feature scales inherently well.
+### Modelinng (Classification)
 
-2. **Controlled Model Complexity and Overfitting:**  
-   GBT allows for fine control over model complexity and helps prevent overfitting by adjusting parameters like the learning rate, tree depth, and regularization methods. This makes it suitable for both small and large datasets.
+We will stull use the same dataset. The only thing that I will do is to transform the continous variable into a binary outcome. I will recode the target column 'num' to be 0 and 1. For any rows that are coded as 0 ( no heart disease), they would be 0 for the new variables. For rows coded as 1 (mild heart disease),  2 ( moderate heart disease), 3 (severe heart disease), or 4 (critical heart disease), they would be coded as 0.  
 
-3. **Flexibility Across Different Types of Outcomes:**  
-   The algorithm works with various types of target outcomes, including continuous, categorical, and ranking data, making it highly versatile for different types of machine learning problems.
+```ruby
+# Recode the 'num' column: 0 stays as 0, 1, 2, 3, 4 are recoded to 1
+data['num'] = data['num'].map({0: 0, 1: 1, 2: 1, 3: 1, 4: 1})
 
-4. **More Accurate and Robust Predictions:**  
-   Like bagging methods, GBT produces a final model that is a weighted sum of all weak models (trees). This ensemble approach often results in more accurate predictions than a single decision tree because it reduces bias while maintaining a reasonable variance, thereby providing a more robust model.
+data['num'].value_counts()
+```
 
-Overall, GBTs are powerful, flexible, and widely applicable for many predictive modeling tasks, offering a balance between simplicity, interpretability, and predictive performance.
+After recoding, we got 411 samples as not having a heart disease and 509 samples as having a disease. The classes are not extremely imbalanced.
+1. Like the regression task, we will start with seprating predictors (features) and the outcome variable and splitting the data into training and testing sets.
+```ruby
+# Separate predictors (features) and the outcome variable
+X = data.drop(columns=['id', 'num'])  # Use all columns except 'id' and 'num' as predictors
+y = data['num']  # Outcome variable
+
+# Split the data into training and testing sets (80-20 split)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+```
+
+2. We then will set up the initial XGBoost classifier and define the parameter grid for hyperparameter tuning
+
+```ruby
+
+#Set up the initial XGBoost classifier
+xgboost_classifier = xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='logloss')
+
+# Define the parameter grid for hyperparameter tuning
+param_grid = {
+    'max_depth': [3, 4, 5, 6],              # Different depths of trees
+    'learning_rate': [0.01, 0.05, 0.1, 0.2], # Different learning rates
+    'n_estimators': [50, 100, 150, 200],     # Different numbers of trees
+}
+```
+
+3. The next step is to set up a grid search funtion and print the best paramaters
+```ruby
+
+#Set up GridSearchCV with 5-fold cross-validation
+grid_search = GridSearchCV(
+    estimator=xgboost_classifier,
+    param_grid=param_grid,
+    scoring='accuracy',   # Use accuracy as the scoring metric for classification
+    cv=5,                 # 5-fold cross-validation
+    verbose=1,            # Output progress
+    n_jobs=-1             # Use all available cores
+)
+
+# Fit the model using GridSearchCV
+grid_search.fit(X_train, y_train)
+
+# Get the best parameters and model
+best_params = grid_search.best_params_
+best_model = grid_search.best_estimator_
+
+print(f"Best parameters: {best_params}")
+
+```
+
+The output indicates that the following as the best parameters: {'learning_rate': 0.01, 'max_depth': 3, 'n_estimators': 200}
+4. Let's evaluate the model. For classfication tasks, the eavluation matrix is different from a regression task. Instead of relying on MSE, we will use accuracy and the confusion matrix, which I have written about before in this post, to assess how well the model performs.
+
+```ruby
+#Evaluate the best model on the training and test sets
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+y_pred_train = best_model.predict(X_train)
+y_pred_test = best_model.predict(X_test)
+
+# Evaluate model performance
+train_accuracy = accuracy_score(y_train, y_pred_train)
+test_accuracy = accuracy_score(y_test, y_pred_test)
+
+print(f"Training Accuracy: {train_accuracy:.4f}")
+print(f"Testing Accuracy: {test_accuracy:.4f}")
+
+# Detailed evaluation metrics
+print("\nClassification Report (Test Data):")
+print(classification_report(y_test, y_pred_test))
+
+print("\nConfusion Matrix (Test Data):")
+print(confusion_matrix(y_test, y_pred_test))
+
+```
+
+Here is the output: 
 
 
-For the full code snippets, please feel free to visit my GitHub page
+<img width="518" alt="Screenshot 2024-09-17 at 8 14 56 PM" src="https://github.com/user-attachments/assets/f99f1c0e-3704-49d5-ba8a-98afe2acf123">
+
+
+The accuracy scores indicate that the model performs well on both the training and testing data, with similar accuracy levels. This suggests that the model is not overfitting to the training data and generalizes well to unseen data.
+
+For classification report, when we look at class 1 (heart disease) the  precision is 0.87, meaning  of all instances predicted as class 1, 87% are correctly classified. The recall is 0.80, meaning of all actual instances of class 1, 80% are correctly identified. The F1-score at 0.83 indicates balance between precision and recall for class 1.
+
+The confusion matrix shows the number of true positives (TP), true negatives (TN), false positives FP), and false negatives (FN). Regarding TN for class 0: 75 instances correctly classified as 0. FN for class 0: 34 instances wrongly classified as 1. TP for class 1: 87 instances correctly classified as 1. FP for class 1: 22 instances wrongly classified as 0.
+
+
+You may notice that the model performance when we treat 'num' as the binary outcome is much better than when we treat the variable as a continuous outcome. This could be due to several reasons: 
+
+1. Nature of the Target Variable: When treating num as a continuous variable, the model is trying to predict specific values (0, 1, 2, 3, 4) that imply a level of severity in heart disease. However, these ordinal levels do not necessarily have a linear or direct relationship that a regression model can easily capture. The differences between classes are not continuous or evenly spaced.
+2. Classification is More Suitable for Imbalanced Data: When num is treated as continuous, the model might struggle to understand the differences between closely related values (e.g., 1 vs. 2 or 3 vs. 4). In contrast, classification can more easily distinguish between distinct classes (0 vs. 1), especially when the classes have different distributions.
+3. In practice, treating the outcome as having or not having heart disease for an effective prevention and treatment plan makes more sense than trying to understand the chance of someone having the disease on a spectrum.
+
+### Feature Importance 
+Now that we know the classificaiton model performs better than the regresssion one, let's perform feature importance to see which variables most influence the likelihood of one having a heart disease.
+
+```ruby
+feature_importances = best_model.feature_importances_
+
+# Create a DataFrame for better visualization
+feature_importance_df = pd.DataFrame({
+    'Feature': X.columns,
+    'Importance': feature_importances
+}).sort_values(by='Importance', ascending=False)
+
+# Display the feature importance
+print(feature_importance_df)
+
+# Plot the Feature Importance
+plt.figure(figsize=(10, 6))
+plt.barh(feature_importance_df['Feature'], feature_importance_df['Importance'], color='skyblue')
+plt.xlabel('Feature Importance')
+plt.title('Feature Importance in XGBoost Model')
+plt.gca().invert_yaxis()  # To display the most important feature at the top
+plt.show()
+
+```
+Here is the output: 
+
+<img width="1041" alt="Screenshot 2024-09-17 at 8 21 13 PM" src="https://github.com/user-attachments/assets/d984c7c3-3580-41a9-9650-9b088e036325">
+
+The output shows that cp_asymptomatic (asymptomatic chest pain) is the most significant predictor of heart disease, greatly influencing the model's decisions. Other notable features include dataset_VA Long Beach (the data set from Long Beach area, which likely indicates that patients from the specific area), cp_atypical angina (another chest pain type), sex, chol (cholesterol level), and thalch (maximum heart rate achieved), indicating their moderate impact on predictions. Less influential features are age and the dataset origins like dataset_Switzerland and dataset_Hungary, while some features such as dataset_Cleveland, fbs (fasting blood sugar), and certain ECG results have zero importance, suggesting they do not add predictive value to the model.
+
+
+
+For the full code snippets, please feel free to visit my GitHub page here.
 
 
