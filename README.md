@@ -80,7 +80,11 @@ To understand how GBT for regression works, let’s start with the most basic co
 For example, if you're building a model to predict customer satisfaction, and the average satisfaction score across all customers is 3.4, this initial leaf is set to 3.4. This value stands alone and is not yet associated with any tree—it's just the model's first guess, much like an intercept in a regression model.
 
 Now, imagine your data looks like this:
-<img width="643" alt="Screen Shot 2024-09-16 at 4 55 24 PM" src="https://github.com/user-attachments/assets/f05ececa-2155-47ea-b224-3cb1f577b43f">
+
+<img width="347" alt="Screenshot 2024-09-18 at 8 26 08 PM" src="https://github.com/user-attachments/assets/0bf8a7ab-8d87-4e47-a77d-1e545c789318">
+
+
+Table 1. Customer Satisfaction Data.
 
 For each data point, if we subtract the predicted satisfaction score (i.e., 3.4) from the actual satisfaction score, you get the residual. These residuals in the Residual column represent the errors of the current model across customers. Now that we get the initial leaf and the residuals for all participants, let's build the first tree.
  
@@ -88,7 +92,13 @@ Unlike trees in Random Forest, the trees we build for GBT predict **residuals** 
   
 For example, suppose we're considering a split on 'Income.' This first tree evaluates different split points (e.g., "Income < $50,000" vs. "Income ≥ $50,000"). For each possible split, it calculates the MSE of the residuals for the data points falling into the left and right child nodes after the split. The split value that results in the lowest total MSE for the residuals is chosen.
   
-Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals **NOT** the actual customer satisfaction scores themselves. For examples, the residuals for Group 1 (Income < $50,000) are [0.6,−0.4,−0.4], the mean residual for this group would be - 0.07. Similarly, the algorithm computes the mean residual for Group 2 in the same waay. For each group, The algorithm calculates the Mean Squared Error (MSE) between the actual residuals and the predicted residuals, using the equation below as an example for Group 1:
+Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals **NOT** the actual customer satisfaction scores themselves. For examples, the residuals for Group 1 (Income < $50,000) are [0.6,−0.4,−0.4], the mean residual for this group would be - 0.07. Similarly, the algorithm computes the mean residual for Group 2 in the same waay. 
+
+![Corrected_Income_Residual_Decision_Tree](https://github.com/user-attachments/assets/ff841cde-bccc-4548-ac45-f7a70e962e75)
+
+Figure 2. The First Weak Learner in the GBT of the Customer Satisfaction Data.
+
+For each group, The algorithm calculates the Mean Squared Error (MSE) between the actual residuals and the predicted residuals, using the equation below as an example for Group 1:
 
 <img width="619" alt="Screen Shot 2024-08-29 at 4 50 31 PM" src="https://github.com/user-attachments/assets/6dd17a75-9367-4e38-b17b-c1b68c3735f4">
 
@@ -96,36 +106,32 @@ The total MSE for this split is a weighted sum of the MSEs for each group:
 
 <img width="466" alt="Screen Shot 2024-08-29 at 4 51 31 PM" src="https://github.com/user-attachments/assets/b400fb5a-84f3-4d65-bc7f-32497281cf5f">
 
-Here, *n1*  and  *n2*  are the number of samples in Group 1 and Group 2, and  *n* is the total number of samples. The split that results in the lowest Total MSE is chosen as the best split for that node. 
+Here, *n1* and *n2* represent the number of samples in Group 1 and Group 2, respectively, while *n* is the total number of samples. The split that results in the lowest total MSE is chosen as the best split for that node. For the current fictitious data, let's assume that 50,000 is the best split.
 
-Now that we got the averaged residuals from tree 1, we will use the residuals to update the predicted value (i.e., customer satisfaction score) for each customer. Note that in the real world, you will likely have more than one node (i.e., more than the income variable) as the predictors. However, I will just build the first tree using only income as the predictor here for simplicity. To update the predicted value for each customer, you will just pass the data point down the tree according to the decision rules at each node, find the residual for that value, and sum it with the initial leaf value to obtain the new predicted value. 
+Now that we have the averaged residuals from Tree 1, we will use them to update the predicted value (i.e., customer satisfaction score) for each customer. In the real world, you will likely have more than one predictor. However, I have built the first tree using only income as the predictor here for simplicity. To update the predicted value for each customer, you simply pass the data point down the tree according to the decision rules at each node, find the residual for that value, and add it to the initial leaf value to obtain the new predicted value.
 
+For example, for customer #1 in Table 1, their income is less than 50,000, and the averaged residual for them is -0.07, according to the tree in Figure 2. Thus, the new predicted value is:
 
-![Corrected_Income_Residual_Decision_Tree](https://github.com/user-attachments/assets/ff841cde-bccc-4548-ac45-f7a70e962e75)
+**New Predicted Value = Initial Leaf + (Averaged Residual from Tree n)** = 3.4 + (-0.07) = 3.33
 
-
-For example, for customer 1 in the table, their income is less than 50,000 and the averaged residual for them is -0.07. Thus, the new preidcted value is:
-
-New Predicted Value = Initial Leaf + (Averaged Residual from Tree *n*) = 3.4 + −0.07 . Now we do this for every customer and you wil get the updated table below: 
-
+Now, we apply this process for every customer, and you will get the updated table below:
 
 
 <img width="777" alt="Screen Shot 2024-09-17 at 12 07 51 PM" src="https://github.com/user-attachments/assets/d8ee5d54-2e96-42d4-b60e-cbc5b4e590ae">
 
+You may notice that the updated predicted values for certain customers, such as customer #5 (3.33), are close to the observed value (3). Isn't this excellent?
 
-Now, you may notice that the updated predicted values for certain customers such as customer number 5 (the predicted satisfaction score = 3.33) are closed to the observed value (3). Isn't this excellent? 
+The answer is no. We are facing an overfitting issue because Tree 1, as the first weak learner, learns too quickly to predict the observed values, leading to a potential lack of generalizability to new, unseen data. To address this issue, we need to apply a learning rate, a hyperparameter that can be fine-tuned and typically ranges from 0 to 1. Lowering the learning rate scales down the influence of each new tree, reducing the overfitting problem. The equation is as follows:
 
-The answer is no. We are facing an overfitting issue because Tree 1, as the model, learns too quickly to predict the observed values, leading to a poential lack of generalizability to new, unseen data. To fix this issue, we need to apply **a learning rate**, a hyperparameter that we can fine-tune and that ranges from 0 to 1. Lowering the learning rate can scale down the influence of each new tree, reducing the overfitting problem. The equation is as below: 
+**New Predicted Value = Initial Leaf + (learning rate × Averaged Residual from Tree *n*)**
 
-New Predicted Value = Initial Leaf + (learning rate x Averaged Residual from Tree *n*)
-
-With a learning rate of 0.1, the updated predicted value for the first customer is  3.4 + 0.1(−0.07). We do this for every customer and get the updated table as below: 
-
+With a learning rate of 0.1, the updated predicted value for the first customer is 3.4 + 0.1(−0.07). We apply this for every customer and get the updated table below:
 
 
 <img width="750" alt="Screen Shot 2024-09-17 at 11 42 15 AM" src="https://github.com/user-attachments/assets/6d5571d4-6e40-4373-9b4c-cbff522172a0">
 
-Now can see that the predicted values for tree 1 are less closer to the observed values yet still closer to the actual values than the initial predicted value (i.e., 3.4).
+
+Now, you can see that the predicted values for the first weak learner are less close to the observed values, yet still closer to the actual values than the initial leaf predictions.
 
 With a lower learning rate, the model takes smaller steps toward reducing the loss, requiring more trees to reach a similar level of accuracy. This slower, more controlled process allows the model to capture underlying patterns gradually without fitting to noise. I often found that using more trees with a smaller learning rate can result in a model that generalizes better than a few large steps
 
@@ -135,7 +141,7 @@ The concept I explained above is applicable to building all next trees in the bo
 
 ### 2. GBT for Classification
 
-To understand gradient boosting for classification, we need to first grasp the concepts of log odds (logit), odds, probability, and log likelihood. These are foundational concepts of logistic regression, which I explained in a previous post.
+To understand GBT for classification, we need to first grasp the concepts of log odds (logit), odds, probability, and log likelihood. These are foundational concepts of logistic regression, which I explained in my previous [post](https://www.linkedin.com/pulse/understanding-logistic-regression-machine-learning-chansiri-ph-d--v9p7e/?trackingId=dD84NzBIRSa3jT28Z2ATWA%3D%3D).
 
 Let’s breifly discuss these concepts. For binary outcomes (e.g., yes/no, true/false), a linear algorithm cannot be directly used to predict the outcome because the predictions might fall outside the intended boundary [0,1]. To restrict the predicted values within this range, we use functions like the sigmoid function. The sigmoid function is mathematically represented as below (note that *z* is the output of a linear regression equation, which can be represented as *B*<sub>*0* + *B*<sub>*1*</sub>*X*<sub>*1*</sub> + *B*<sub>*2*</sub>*X*<sub>*2*</sub> + ...
 
