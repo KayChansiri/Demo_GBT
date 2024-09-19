@@ -59,11 +59,13 @@ GBT can be used with both classification and regression problems, unlike certain
 
 Let's spend some time here for a sec to take a closer look at the concept of log loss. Bascially, log loss measures how well a classification model's predicted probabilities match the actual class labels. It is a measure of error or "loss" that quantifies the distance between the true class labels and the predicted probabilities. The log loss formula for binary classification is as below. A lower log loss means better probability estimates from the model.
 
-![Screen Shot 2024-09-12 at 2 27 57 PM](https://github.com/user-attachments/assets/05f64b7d-59f7-4ce3-bd0d-e9a6bdcdaeab)
+<img width="493" alt="Screenshot 2024-09-18 at 9 03 37 PM" src="https://github.com/user-attachments/assets/7a7a75cc-2ac4-4610-a273-df7a2482db0f">
+
 
 Now, for log-likelihood, the concept measures how likely it is that the observed data (actual labels) would occur given the predicted probabilities by the model. The higher the likelihood, the better the model fits the data. If you are not familiar with the concept. In classification tasks, we aim to maximize the log likelihood because a higher log likelihood indicates that the model is producing predictions that align well with the actual data. The equaiton of the log likelihood can be represented as below: 
 
-![Screen Shot 2024-09-12 at 2 34 05 PM](https://github.com/user-attachments/assets/930a0c62-e966-4b05-9514-28049655a59b)
+<img width="500" alt="Screenshot 2024-09-18 at 9 03 42 PM" src="https://github.com/user-attachments/assets/e7df3058-e4db-41ff-a067-ff5558ab611d">
+
 
 Notice that the log likelihood is just the negative of the log loss (without the averaging and negative sign). That's why I mentioned previously that the concepts of log loss and log likelihood are mathematically similar.
 
@@ -172,7 +174,7 @@ Consider the same example of age and income predicting customer satisfaction, bu
 
 <img width="352" alt="Screen Shot 2024-09-17 at 12 38 53 PM" src="https://github.com/user-attachments/assets/d503aa2c-4c7d-4178-9c74-f62f7e4a6db1">
 
-
+*Table 4. Customer Satisfaction Data.*
 
 The log of the odds can be calculated using the equation:
 
@@ -192,7 +194,8 @@ Now that we have the probability as our initial leaf, we can calculate the resid
 
 
 <img width="676" alt="Screen Shot 2024-09-17 at 12 38 10 PM" src="https://github.com/user-attachments/assets/6acebd97-40ed-41d6-a7fb-cdce6a18bc5c">
-*Table 4. Customer Satisfaction Data with Residuals.*
+
+*Table 5. Customer Satisfaction Data with Residuals.*
 
 Similar to what we did earlier in gradient boosting for regression, these residuals will then be used to build our first tree using the same logic we used prevoiusly for GBT for regression. For example, if we want to use income to predict customer satisfaction, the algorithm evaluates various potential cut-off points (e.g., "income < 40,000", "income < 60,000", etc.) and selects the one that minimizes the Gini Index or Cross-Entropy, making the leaf nodes as "pure" as possible in terms of residuals. If "income < 50,000" is considered a potential cut-off point, the residuals of customers with an income below this threshold are considered in the split calculation. The goal is to find the split that results in more homogeneity in terms of their residuals. We can calculate this using the formula below: 
 
@@ -226,6 +229,7 @@ For Customer 1, we calculate −0.4+(0.1×−0.28). Note that the learning rate 
 
 
 <img width="864" alt="Screen Shot 2024-09-17 at 1 00 19 PM" src="https://github.com/user-attachments/assets/e14359b9-c935-4450-b365-e7a5c6e4b49b">
+
 *Table 6. Customer Satisfaction Data with New Predicted Values and Residuals.*
 
 You may notice that the new residuals for some customers are smaller than their initial residuals. This indicates that we are on the right track. However, for certain customers, the new residuals are larger than the original ones. This is why we need to keep repeating the process until all residuals become sufficiently small or until we reach a maximum number of trees specified, indicating that further improvement is minimal. By controlling the learning rate and the number of trees, we can ensure that the model does not overfit the data and generalizes well to unseen data. The ultimate goal is to build a robust model that balances bias and variance. In the end, we will have *n* trees, where *n* is a parameter we fine-tune. 
