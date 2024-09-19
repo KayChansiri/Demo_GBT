@@ -30,29 +30,34 @@ We can write a one-line equation representing GBT boosting as below:
 ￼<img width="302" alt="F(x) = Fo(x) +" src="https://github.com/user-attachments/assets/d68bc611-51cf-4bd3-9ac1-98026ab9f3a0">
 
 *F(x)* is the final boosted model.
+
 *F<sub>0</sub>(x)* is the initial model (e.g., the mean for regression, the log of the odd for classification).
+
 *h<sub>m</sub>(x)* is the weak learner at iteration 
-*η* is the learning rate, which is a parameter that can be fine-tuned. 
+
+*η* is the learning rate, which is a parameter that can be fine-tuned.
+
 *M* is the total number of iterations or trees.
 
 ## Data Preparation Assumptions for Boosting Techniques
 
 1. **Handling of Scale**: Similar to bagging in Random Forest, boosting algorithms do not require standardization or normalization of the input features as the algorithm is based on decision trees, which are are invariant to the scale of the features. 
-2. **Dimensionality:** Unlike certain algorithms that may suffer from the curse of dimensionality such as KNN, boosting can handle high-dimensional data relatively well. However, keep in mind that if the number of features is much larger than the number of samples, the model might suffer from overfitting issues, just like many ML algorithms. Dimensionality reduction techniques (like PCA, EFA) or feature selection based on your project or research objectives can help in such cases. Although GBT works well for high-dimensioanl data, the algorithm does not work well for  high-dimensional sparse data, which is similar to other tree-based models.
+2. **Dimensionality:** Unlike certain algorithms that may suffer from the curse of dimensionality such as KNN, boosting can handle high-dimensional data relatively well. However, keep in mind that if the number of features is much larger than the number of samples, the model might suffer from overfitting issues, just like many ML algorithms. Dimensionality reduction techniques (like PCA, EFA) or feature selection based on your project or research objectives can help in such cases. Although GBT works well for high-dimensioanl data, the algorithm does not work well for  high-dimensional sparse data, which this  limitation is similar to other tree-based models.
 3. **Data Quality:** Boosting is sensitive to noisy data and outliers because it tries to correct errors from previous learners. If the data is noisy, boosting can overfit to the noise. Some preprocessing, like removing outliers or using regularization techniques, can help mitigate this issue.
 4. **Handling Missing Values:** Many boosting algorithms like XGBoost, which I will discuss in my next post, can handle missing values internally. However, it is still a good practice to handle missing values before applying the model to improve model performance. Imputation techniques such as expectation maximization or multiple imputation are helpful if you have missing completely at nonrandom. For data suffering from missing at random and the missing percentage is low, a simpler technique such as single imputation, mean imputation for continuous predictors, or mode imputation for categorical predictors is helpful.
-5. **Data Size:** Boosting techniques can be computationally expensive, especially with large datasets, because of their sequential nature. Certain boosting techniques such. as XGBoost or LightGBM provide optimizations for faster computations.
+5. **Data Size:** Boosting techniques can be computationally expensive, especially with large datasets, because of their sequential nature. Certain boosting libraries, such as XGBoost or LightGBM provide optimizations for faster computations.
 
 
-<img width="903" alt="Screen Shot 2024-08-28 at 1 48 22 PM" src="https://github.com/user-attachments/assets/524606fe-916e-4e7e-86b5-8d633beb57b2">
+<img width="731" alt="Screenshot 2024-09-18 at 8 04 19 PM" src="https://github.com/user-attachments/assets/97bce814-709b-417d-9533-e70e3d148466">
 
-Figure 1. The Differences and Workflow of Boosting versus Bagging Algorithms 
 
-## Types of GBT Boosting
+*Figure 1. The Differences and Workflow of Boosting versus Bagging Algorithms* 
 
-GBT can be used with both classification and regression problems, unlike certain boosting algorithms such as AdaBoost that focuses on only classification problem. For GBT regression problem, the goal is to minimize a loss function, which measures the difference between the predicted values and the actual values. Common loss functions for regression include Mean Squared Error (MSE) and Mean Absolute Error (MAE). For classification problems, the goal is to minimize the log loss or cross-entropy loss. Minimizing log loss is equivalent to maximizing the log-likelihood, which you might have heard if you work with logistic regression before. Both minimizing log loss and maximizing log likelihood are mathematically related and represent the same objective. 
+## Types of GBT
 
-Let's spend time here for a sec to take a closer look at the concept of log loss. Bascially, log loss measures how well a classification model's predicted probabilities match the actual class labels. It is a measure of error or "loss" that quantifies the distance between the true class labels and the predicted probabilities. The log loss formula for binary classification is as below. A lower log loss means better probability estimates from the model.
+GBT can be used with both classification and regression problems, unlike certain boosting algorithms such as AdaBoost that focuses on only classification tasks. For GBT regression problem, the goal is to minimize a loss function, which measures the difference between the predicted values and the actual values. Common loss functions for regression include Mean Squared Error (MSE) and Mean Absolute Error (MAE). For classification problems, the goal is to minimize the log loss or cross-entropy loss. Minimizing log loss is equivalent to maximizing the log-likelihood, which you might have heard if you work with logistic regression before. Both minimizing log loss and maximizing log likelihood are mathematically related and represent the same objective. 
+
+Let's spend some time here for a sec to take a closer look at the concept of log loss. Bascially, log loss measures how well a classification model's predicted probabilities match the actual class labels. It is a measure of error or "loss" that quantifies the distance between the true class labels and the predicted probabilities. The log loss formula for binary classification is as below. A lower log loss means better probability estimates from the model.
 
 ![Screen Shot 2024-09-12 at 2 27 57 PM](https://github.com/user-attachments/assets/05f64b7d-59f7-4ce3-bd0d-e9a6bdcdaeab)
 
@@ -62,35 +67,30 @@ Now, for log-likelihood, the concept measures how likely it is that the observed
 
 Notice that the log likelihood is just the negative of the log loss (without the averaging and negative sign). That's why I mentioned previously that the concepts of log loss and log likelihood are mathematically similar.
 
-On a side note, don't get confused between the concepts of log loss and log of the odds. Those are totally diferent things. The log loss measures the distance between the true labels and the predicted probabilities. The log of the odds (AKA logit) are defined as the ratio of the probability of the event occurring to the probability of it not occurring.
+> On a side note, don't get confused between the concepts of log loss and log of the odds. Those are totally diferent things. The log loss measures the distance between the true labels and the predicted probabilities. The log of the odds (AKA logit) are defined as the ratio of the probability of the event occurring to the probability of it not occurring.
 
 Now that you understand the types of GBT and the relevant concepts, let’s start with GBT for regression.
 
 ### 1.GBT for Regression
 
-* The fundamental of GBT for regression is gradient descent. If you are not familiar with the concept, know that a gradient is a vector that points in the direction of the steepest increase of the loss function. The magnitude of this vector indicates how steep the slope is. In optimization, which is the basis of ML algorithms, we are interested in moving in the opposite direction of the gradient (the direction of the steepest decrease) to minimize the loss. This is why we focus on gradient 'descent' or the 'negative gradient.'
-  
-* To better understand how GBT for regression works, let’s start with an initial standalone leaf as the most basic predicted value before we beginning to build a tree. Just like a typical linear regression model, the most basic thing that would us understand the outcome is the intercept. Like the concept of intercept, the initial leaf for GBT for regression is simply the average of the observed outcome across all samples in the dataset. For example, if you are building a model to predict customer satisfaction and the average satisfaction score across all customers is 3.4, the first predicted value or the initial leaf is 3.4. This values stands alone without being associated with any tree. For simplicity, imagine that your data looks like this:
+The core concept behind GBT for regression is gradient descent. If you're unfamiliar with gradient descent, think of it this way: A gradient is a vector that points in the direction of the steepest increase in the loss function (the function we are trying to minimize). The magnitude of the gradient tells us how steep the slope is. In optimization, which is fundamental to machine learning algorithms, we aim to move in the opposite direction of the gradient—the steepest descent—because our goal is to minimize the loss. This is why we talk about gradient descent, focusing on the "negative gradient."
 
+To understand how GBT for regression works, let’s start with the most basic concept— **the initial prediction**. Before we build any decision trees, we begin with a simple, standalone prediction, much like the intercept in a linear regression model. This initial prediction, or we call the initial leaf, is simply the average of the observed outcome across all samples in the dataset.
+
+For example, if you're building a model to predict customer satisfaction, and the average satisfaction score across all customers is 3.4, this initial leaf is set to 3.4. This value stands alone and is not yet associated with any tree—it's just the model's first guess, much like an intercept in a regression model.
+
+Now, imagine your data looks like this:
 <img width="643" alt="Screen Shot 2024-09-16 at 4 55 24 PM" src="https://github.com/user-attachments/assets/f05ececa-2155-47ea-b224-3cb1f577b43f">
 
-
-* For each data point, if we subtract the predicted satisfaction (i.e., 3.4) from the actual satisfaction scores, you get the residuals. These residuals in the Residual column represent the errors of the current model across customers.
+For each data point, if we subtract the predicted satisfaction score (i.e., 3.4) from the actual satisfaction score, you get the residual. These residuals in the Residual column represent the errors of the current model across customers. Now that we get the initial leaf and the residuals for all participants, let's build the first tree.
+ 
+Unlike trees in Random Forest, the trees we build for GBT predict **residuals** NOT the **observed data**, which in this case is the actual customer satisfaction scores. However, similar to a typical decision tree, at each node in this first tree of the GBT, the algorithm evaluates splits using predictors in the dataset, which could be demographic variables or any variables important for your project, to determine which split best reduces the loss function of the residuals. In this context where the outcome is continuous, the loss function is measured by MSE.
   
-* Now that we get the initial leaf and the residuals for all participants, let's build the first tree.
-
-> Note that unlike trees in Random Forest, the trees we build for GBT predict residuals NOT the observed data, which in this case is the actual customer satisfaction scores.
-
-* However, similar to a typical decision tree, at each node in this first tree of the GBT, the algorithm evaluates splits using predictors in the dataset, which could be demographic variables or any variables important for your project, to determine which split best reduces the loss function of the residuals. **Again I said the residuals** NOT **the actual outcome scores**. In this context where the outcome is continuous, the loss function is measured by mean squared error (MSE).
+For example, suppose we're considering a split on 'Income.' This first tree evaluates different split points (e.g., "Income < $50,000" vs. "Income ≥ $50,000"). For each possible split, it calculates the MSE of the residuals for the data points falling into the left and right child nodes after the split. The split value that results in the lowest total MSE for the residuals is chosen.
   
-* For example, suppose we're considering a split on 'Income.' This first tree evaluates different split points (e.g., "Income < $50,000" vs. "Income ≥ $50,000"). For each possible split, it calculates the MSE of the residuals for the data points falling into the left and right child nodes after the split. The split value that results in the lowest total MSE for the residuals is chosen.
-  
-* Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals NOT the actual customer satisfaction scores themselves. For instance, if the residuals for Group 1 (Income < $50,000) are [0.6,−0.4,−0.4], the mean residual for this group would be - 0.07. Similarly, the algorithm computes the mean residual for Group 2 in the same way.
-  
-* The algorithm then calculated the averaged residuals for each group (e.g.,-0.07 for the Group with income < $50,000 in this example). For each group, The algorithm calculates the Mean Squared Error (MSE) between the actual residuals and the predicted residuals, using the equation below as an example for Group 1:
+Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals **NOT** the actual customer satisfaction scores themselves. For examples, the residuals for Group 1 (Income < $50,000) are [0.6,−0.4,−0.4], the mean residual for this group would be - 0.07. Similarly, the algorithm computes the mean residual for Group 2 in the same waay. For each group, The algorithm calculates the Mean Squared Error (MSE) between the actual residuals and the predicted residuals, using the equation below as an example for Group 1:
 
 <img width="619" alt="Screen Shot 2024-08-29 at 4 50 31 PM" src="https://github.com/user-attachments/assets/6dd17a75-9367-4e38-b17b-c1b68c3735f4">
-
 
 The total MSE for this split is a weighted sum of the MSEs for each group: 
 
@@ -98,7 +98,7 @@ The total MSE for this split is a weighted sum of the MSEs for each group:
 
 Here, *n1*  and  *n2*  are the number of samples in Group 1 and Group 2, and  *n* is the total number of samples. The split that results in the lowest Total MSE is chosen as the best split for that node. 
 
-* Now that we got the averaged residuals from tree 1, we will use the residuals to update the predicted value (i.e., customer satisfaction score) for each customer. Note that in the real world, you will likely have more than one node (i.e., more than the income variable) as the predictors. However, I will just build the first tree using only income as the predictor here for simplicity. To update the predicted value for each customer, you will just pass the data point down the tree according to the decision rules at each node, find the residual for that value, and sum it with the initial leaf value to obtain the new predicted value. 
+Now that we got the averaged residuals from tree 1, we will use the residuals to update the predicted value (i.e., customer satisfaction score) for each customer. Note that in the real world, you will likely have more than one node (i.e., more than the income variable) as the predictors. However, I will just build the first tree using only income as the predictor here for simplicity. To update the predicted value for each customer, you will just pass the data point down the tree according to the decision rules at each node, find the residual for that value, and sum it with the initial leaf value to obtain the new predicted value. 
 
 
 ![Corrected_Income_Residual_Decision_Tree](https://github.com/user-attachments/assets/ff841cde-bccc-4548-ac45-f7a70e962e75)
