@@ -84,7 +84,8 @@ Now, imagine your data looks like this:
 <img width="347" alt="Screenshot 2024-09-18 at 8 26 08 PM" src="https://github.com/user-attachments/assets/0bf8a7ab-8d87-4e47-a77d-1e545c789318">
 
 
-Table 1. Customer Satisfaction Data.
+*Table 1. Customer Satisfaction Data.*
+
 
 For each data point, if we subtract the predicted satisfaction score (i.e., 3.4) from the actual satisfaction score, you get the residual. These residuals in the Residual column represent the errors of the current model across customers. Now that we get the initial leaf and the residuals for all participants, let's build the first tree.
  
@@ -94,9 +95,10 @@ For example, suppose we're considering a split on 'Income.' This first tree eval
   
 Still confused? Suppose the algorithm is considering a split on the Income variable, with a threshold of $50,000. This means we create two groups of samples: 1) Group 1 representing customers with Income < $50,000, and 2) Group 2 representing customers with Income ≥ $50,000. For each group, the algorithm computes the mean of the residuals. Again, I emphasize the mean of the residuals **NOT** the actual customer satisfaction scores themselves. For examples, the residuals for Group 1 (Income < $50,000) are [0.6,−0.4,−0.4], the mean residual for this group would be - 0.07. Similarly, the algorithm computes the mean residual for Group 2 in the same waay. 
 
+
 ![Corrected_Income_Residual_Decision_Tree](https://github.com/user-attachments/assets/ff841cde-bccc-4548-ac45-f7a70e962e75)
 
-Figure 2. The First Weak Learner in the GBT of the Customer Satisfaction Data.
+*Figure 2. The First Weak Learner in the GBT of the Customer Satisfaction Data.*
 
 For each group, The algorithm calculates the Mean Squared Error (MSE) between the actual residuals and the predicted residuals, using the equation below as an example for Group 1:
 
@@ -119,6 +121,8 @@ Now, we apply this process for every customer, and you will get the updated tabl
 
 <img width="777" alt="Screen Shot 2024-09-17 at 12 07 51 PM" src="https://github.com/user-attachments/assets/d8ee5d54-2e96-42d4-b60e-cbc5b4e590ae">
 
+*Table 2. Customer Satisfaction Data with Adjusted Predicted Values.*
+
 You may notice that the updated predicted values for certain customers, such as customer #5 (3.33), are close to the observed value (3). Isn't this excellent?
 
 The answer is no. We are facing an overfitting issue because Tree 1, as the first weak learner, learns too quickly to predict the observed values, leading to a potential lack of generalizability to new, unseen data. To address this issue, we need to apply a learning rate, a hyperparameter that can be fine-tuned and typically ranges from 0 to 1. Lowering the learning rate scales down the influence of each new tree, reducing the overfitting problem. The equation is as follows:
@@ -129,6 +133,8 @@ With a learning rate of 0.1, the updated predicted value for the first customer 
 
 
 <img width="750" alt="Screen Shot 2024-09-17 at 11 42 15 AM" src="https://github.com/user-attachments/assets/6d5571d4-6e40-4373-9b4c-cbff522172a0">
+
+*Table 3. Customer Satisfaction Data with Adjusted Predicted Values and Learning Rate Application.*
 
 
 Now, you can see that the predicted values for the first weak learner are less close to the observed values, yet still closer to the actual values than the initial leaf predictions.
@@ -186,6 +192,7 @@ Now that we have the probability as our initial leaf, we can calculate the resid
 
 
 <img width="676" alt="Screen Shot 2024-09-17 at 12 38 10 PM" src="https://github.com/user-attachments/assets/6acebd97-40ed-41d6-a7fb-cdce6a18bc5c">
+*Table 4. Customer Satisfaction Data with Residuals.*
 
 Similar to what we did earlier in gradient boosting for regression, these residuals will then be used to build our first tree using the same logic we used prevoiusly for GBT for regression. For example, if we want to use income to predict customer satisfaction, the algorithm evaluates various potential cut-off points (e.g., "income < 40,000", "income < 60,000", etc.) and selects the one that minimizes the Gini Index or Cross-Entropy, making the leaf nodes as "pure" as possible in terms of residuals. If "income < 50,000" is considered a potential cut-off point, the residuals of customers with an income below this threshold are considered in the split calculation. The goal is to find the split that results in more homogeneity in terms of their residuals. We can calculate this using the formula below: 
 
@@ -195,8 +202,9 @@ Similar to what we did earlier in gradient boosting for regression, these residu
 If the split results in nodes where the residuals are closer to zero, it is considered a good split. The process involves iteratively adjusting the cut-off point until the leaf nodes are as pure as possible, meaning they contain residuals that are minimal and represent better predictions for the classification task. Let’s imagine the first tree we obtained is shown below:
 
 ![output-6](https://github.com/user-attachments/assets/36830b57-65d2-4c71-b35f-4de15c7d882c)
+*Figure 3. The First Weak Learner in the GBT for Classification of the Customer Satisfaction Data.*
 
-Note that for GBT tasks, residuals are referred to as "pseudo-residuals" because they represent the difference between the actual outcomes and the predicted residuals (i.e., averaged residuals for a regression task and probabilities for a classification task), rather than the difference between the actual and predicted values as in linear regression. A more technical way to explain this is that pseudo-residuals are derived from the gradient of the loss function used, such as the negative log-likelihood (log loss) or binary cross-entropy for classification tasks, and Mean Squared Error (MSE) for regression tasks.
+Note that for GBT tasks, including both classification, and regression, residuals are referred to as "pseudo-residuals" because they represent the difference between the actual outcomes and the predicted residuals (i.e., averaged residuals for a regression task and probabilities for a classification task), rather than the difference between the actual and predicted values as in linear regression. A more technical way to explain this is that pseudo-residuals are derived from the gradient of the loss function used, such as the negative log-likelihood (log loss) or binary cross-entropy for classification tasks, and MSE for regression tasks.
 
 Now that we have the residuals as the final leaves of the tree and the initial leaf (e.g., −0.4), we can calculate the predicted probability for each customer.
 However, since the initial leaf is in the log of the odds (logit) form and the tree is built based on probabilities, we can't simply sum the log odds and residuals. As explained earlier, log odds and probabilities are two different representations.
@@ -205,9 +213,10 @@ To address this issue, we need to perform some mathematical transformations. For
 
 <img width="671" alt="Adjusted Residual" src="https://github.com/user-attachments/assets/d49ea336-2261-47ff-a046-3a32b2adc817">
 
-Let's use Final Leaf 1 as an example and apply the formula to calculate the adjusted residual. Note that the previous probability for all customers in this leaf is 0.4 (see Table 2). Thus, for the numerator, we have 0.6+(−0.4)+(−0.4)=0.6−0.8 = −0.2. For the denominator, we calculate 0.4×0.6+0.4×0.6+0.4×0.6=0.72. Therefore, the adjusted residual for the first leaf is −0.2/0.72=−0.28. If you repeat this calculation for all final leaves, you will get a tree that looks like the one shown below:
+Let's use Final Leaf 1 in the tree below as an example and apply the formula to calculate the adjusted residual. Note that the previous probability for all customers in this leaf is 0.4 (see Table 4). Thus, for the numerator, we have 0.6+(−0.4)+(−0.4) = −0.2. For the denominator, we calculate (0.4×0.6)+(0.4×0.6)+(0.4×0.6)=0.72. Therefore, the adjusted residual for the first leaf is −0.2/0.72=−0.28. If you repeat this calculation for all final leaves, you will get a tree that looks like the one shown below:
 
 ![output-7](https://github.com/user-attachments/assets/4272a8a3-47b1-4827-88dd-236286e7f699)
+*Figure 4. The First Weak Learner in the GBT for Classification of the Customer Satisfaction Data with Adjusted Residual.*
 
 Now, we have the final output for each leaf in a form that can be combined with the initial leaf, which is in the log-odds form. To do this, we can use the formula below.
 
@@ -217,10 +226,11 @@ For Customer 1, we calculate −0.4+(0.1×−0.28). Note that the learning rate 
 
 
 <img width="864" alt="Screen Shot 2024-09-17 at 1 00 19 PM" src="https://github.com/user-attachments/assets/e14359b9-c935-4450-b365-e7a5c6e4b49b">
+*Table 6. Customer Satisfaction Data with New Predicted Values and Residuals.*
 
 You may notice that the new residuals for some customers are smaller than their initial residuals. This indicates that we are on the right track. However, for certain customers, the new residuals are larger than the original ones. This is why we need to keep repeating the process until all residuals become sufficiently small or until we reach a maximum number of trees specified, indicating that further improvement is minimal. By controlling the learning rate and the number of trees, we can ensure that the model does not overfit the data and generalizes well to unseen data. The ultimate goal is to build a robust model that balances bias and variance. In the end, we will have *n* trees, where *n* is a parameter we fine-tune. 
 
-When we get a new, unseen data point, we will run it through every tree and then sum the final log-odds predictions **across all trees**, along with the initial leaf (-0.4), to obtain the final predicted log-odds for that specific data point. We then convert the log-odds into a probability to obtain the final prediction. Typically, we set the threshold at 0.5, meaning that if someone has a final probability greater than 0.5, their customer satisfaction will be coded as 1. If it is less than 0.5, it will be coded as 0.
+When we get a new, unseen data point, we will run it through every tree and then sum the final log-odds predictions **across all trees**, along with the initial leaf (-0.4), to obtain the final predicted log-odds for that specific data point. We then convert the log-odds into a probability to obtain the final prediction. Typically, we set the threshold at 0.5, meaning that if someone has a final probability greater than 0.5, their customer satisfaction will be predicted as 1. If it is less than 0.5, it will be predicted as 0.
 
 ## Parameters to Fine-Tune in Gradient Boosted Trees 
 
