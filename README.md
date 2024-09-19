@@ -236,37 +236,38 @@ You may notice that the new residuals for some customers are smaller than their 
 
 When we get a new, unseen data point, we will run it through every tree and then sum the final log-odds predictions **across all trees**, along with the initial leaf (-0.4), to obtain the final predicted log-odds for that specific data point. We then convert the log-odds into a probability to obtain the final prediction. Typically, we set the threshold at 0.5, meaning that if someone has a final probability greater than 0.5, their customer satisfaction will be predicted as 1. If it is less than 0.5, it will be predicted as 0.
 
-## Parameters to Fine-Tune in Gradient Boosted Trees 
+## Parameters to Fine-Tune in GBT
 
 Now that you understand the concepts of how GBT for regression and classification work, let's talk more about which paramaters can be fine-tuned.
 
 1. **Learning Rate (Range between 0 and 1):**  
 
-GBTs include a learning rate (also known as shrinkage or step size) that scales the contribution of each tree. A smaller learning rate (closer to 0) requires more trees to model the data but often results in a more robust model that generalizes better to unseen data. A larger learning rate (closer to 1) may speed up the learning process but risks overfitting if the model captures too much noise from the training data. The choice of learning rate is a trade-off between the number of trees needed and the model's generalization ability.
+GBT include a learning rate (also known as shrinkage or step size) that scales the contribution of each tree. A smaller learning rate (closer to 0) requires more trees to model the data but often results in a more robust model that generalizes better to unseen data. A larger learning rate (closer to 1) may speed up the learning process but risks overfitting if the model captures too much noise from the training data. The choice of learning rate is a trade-off between the number of trees needed and the model's generalization ability.
 
 2. **Tree Depth:**  
 
-The individual trees in GBTs are usually shallow (typically not more than 40 leaves from what I have seen), ranging from 1 to a few levels deep. These shallow trees, again known as "weak learners," are not very powerful on their own but become highly effective when combined through the boosting process. Deeper trees provide more complex decision boundaries, leading to faster learning but also increasing the risk of overfitting, which adds more variance to the model. Conversely, shallower trees take smaller steps in learning (learning more slowly), requiring more iterations to capture the patterns in the data. However, they tend to reduce variance, leading to a more stable model. The optimal depth depends on the complexity of the underlying data.
+The individual trees in GBT are usually shallow, ranging from one to a few levels deep. These shallow trees, again known as "weak learners," are not very powerful on their own but become highly effective when combined through the boosting process. Deeper trees provide more complex decision boundaries, leading to faster learning but also increasing the risk of overfitting, which adds more variance to the model. Conversely, shallower trees take smaller steps in learning (learning more slowly), requiring more iterations to capture the patterns in the data. However, they tend to reduce variance, leading to a more stable model. The optimal depth depends on the complexity of the underlying data.
 
 3. **Regularization Techniques:**  
-In addition to the learning rate, GBTs can be regularized through other techniques, such as subsampling the training data (also known as stochastic gradient boosting) and controlling the complexity of the trees (e.g., limiting tree depth, minimum samples per leaf). These techniques help prevent overfitting to the training data, especially when dealing with large datasets.
+
+In addition to the learning rate, GBT can be regularized through other techniques, such as subsampling the training data (also known as stochastic gradient boosting) and controlling the complexity of the trees (e.g., limiting tree depth, minimum samples per leaf). These techniques help prevent overfitting to the training data, especially when dealing with large datasets.
 
 ## Example 
 
 Now that you have a solid understanding of GBT, let’s explore a real-world example. I’m using a dataset from Kaggle: Heart Disease Data. This dataset contains 14 attributes, including:
-    Age
-    Sex
-    Chest pain type
-    Resting blood pressure
-    Serum cholesterol
-    Fasting blood sugar
-    Resting electrocardiographic results
-    Maximum heart rate achieved
-    Exercise-induced angina
-    Number of major vessels
+    age,
+    sex,
+    chest pain type,
+    resting blood pressure,
+    serum cholesterol,
+    fasting blood sugar,
+    resting electrocardiographic results,
+    maximum heart rate achieved,
+    exercise-induced angina,
+    number of major vessels, and
     Thalassemia
 
-I recommend visiting [the link](https://www.kaggle.com/datasets/redwankarimsony/heart-disease-data) for more details on the dataset. For this example, we’ll use all the predictors for a regression task. The target variable is the 'num' column, which contains five levels indicating the severity of heart disease:
+I recommend visiting [the link](https://www.kaggle.com/datasets/redwankarimsony/heart-disease-data) for more details on the dataset. The target variable is the 'num' column, which contains five levels indicating the severity of heart disease:
 
     0: No heart disease
     1: Mild heart disease
@@ -280,28 +281,28 @@ The dataset is relatively small, consisting of 920 instances with 16 features.
 
 There are several libraries available for GBT, but I’m using XGBoost for the following reasons:
 
-* Speed and performance: XGBoost is known for its efficiency and high performance.
-*  Handling missing values: XGBoost automatically learns the best way to handle missing data during training. Although it’s a good idea to deal with missing values beforehand for better performance, XGBoost handles it effectively without requiring additional preprocessing.
-* Parallel processing: XGBoost supports parallel processing, making it faster than traditional GBT methods.
-* Versatility: It can handle both classification and regression tasks, which we’ll explore in this demo.
+* **Speed and performance**: XGBoost is known for its efficiency and high performance.
+*  **Handling missing values**: Although it’s a good idea to deal with missing values beforehand for better performance, XGBoost handles it effectively without requiring additional preprocessing.
+* **Parallel processing**: XGBoost supports parallel processing, making it faster than traditional GBT methods.
+* **Versatility**: It can handle both classification and regression tasks, which we’ll explore in this demo.
 
-Other GBT libraries like LightGBM and CatBoost are also great choices. LightGBM, developed by Microsoft, is particularly efficient for large datasets, while CatBoost excels when working with categorical features, as it avoids extensive preprocessing (e.g., one-hot encoding). Another option is the GradientBoostingRegressor or GradientBoostingClassifier from Scikit-learn. However, these functions tend to be slower compared to XGBoost, especially on larger datasets, and they do not support parallelization as efficiently as XGBoost. Additionally, Scikit-learn requires you to handle missing values manually since it doesn’t manage them natively. As my personal preference is to save the computational time even with a small dataset, I chose to use XGBoost for this case.
+Other GBT libraries like LightGBM and CatBoost are also great choices. LightGBM, developed by Microsoft, is particularly efficient for large datasets, while CatBoost is great when you work with categorical features, as it avoids extensive preprocessing (e.g., one-hot encoding). Another option is the GradientBoostingRegressor or GradientBoostingClassifier from Scikit-learn. However, these functions tend to be slower compared to XGBoost, especially on larger datasets, and they do not support parallelization as efficiently as XGBoost. Additionally, Scikit-learn requires users to handle missing values manually. As my personal preference is to save the computational time even with a small dataset, I chose to use XGBoost for this demo.
 
 ### Data Preparation
 
-Before we get started, we need to ensure that the dataset meets all the assumptions required for Gradient Boosted Trees (GBT), although these assumptions are fewer compared to algorithms like linear regression.
+Before we get started, we need to ensure that the dataset meets all the assumptions required for GBT, although these assumptions are fewer compared to algorithms like linear regression.
 
 **1. Data Distribution**
 
 GBT models do not require specific assumptions about the distribution of the data, such as normality, homoscedasticity, or linearity. They are designed to capture complex, non-linear relationships between features and the target variable, making them highly flexible and robust for a wide range of data types. Therefore, there is no need to prepare the data based on distributional assumptions.
 
-There is also no need to check for multicollinearity, as GBT models are decision tree-based. These models split data based on feature values rather than fitting coefficients to predictors (as in linear regression), making them generally robust to multicollinearity. Since they don’t assume independence among predictors, GBT models automatically select the most important features at each split, minimizing the impact of correlated features. If two features are highly correlated, the model will usually choose one based on its ability to reduce the loss function (e.g., Mean Squared Error for regression tasks).
+There is also no need to check for multicollinearity, as GBT models are decision tree-based. These models split data based on feature values rather than fitting coefficients to predictors (as in linear regression), making them generally robust to multicollinearity. Since they don’t assume independence among predictors, GBT models automatically select the most important features at each split, minimizing the impact of correlated features. If two features are highly correlated, the model will usually choose one based on its ability to reduce the loss function.
 
 However, it’s important to note that the assumption of independence of observations still applies to GBT models, just as it does for other machine learning models. While GBT can handle highly correlated features, it may struggle with dependent observations (e.g., in time series data). In cases where observations are dependent, additional steps such as feature engineering or adding lag variables are necessary to account for these dependencies. Fortunately, this does not apply to our current dataset, which is cross-sectional.
 
 **2. Handling of Feature Types**
 
-In the case of the library we are using today, such as XGBoost, categorical variables need to be encoded (e.g., using one-hot encoding or label encoding) before training. In our dataset, the dataset variable, which indicates the location of data collection (with 3 levels), and cp, which indicates chest pain type (with 3 levels), are categorical. Therefore, we will start by applying one-hot encoding to these variables.
+For XGBoost that we are using in this demo, categorical variables need to be encoded (e.g., using one-hot encoding or label encoding) before training. In our dataset, the 'dataset' variable, which indicates the location of data collection (with 3 levels), and 'cp', which indicates chest pain type (with 3 levels), are categorical. Therefore, we will start by applying one-hot encoding to these variables.
 
 ```ruby
 data = pd.get_dummies(data, columns=['dataset', 'cp']) 
@@ -309,7 +310,7 @@ data = pd.get_dummies(data, columns=['dataset', 'cp'])
 
 **3. Handling of Missing Values** 
 
-While GBT algorithms like XGBoost can handle missing values internally, as mentioned earlier, it's generally good practice to address missing values during the data preprocessing stage. In our case, the two columns with missing values—trestbps (resting blood pressure) and chol (cholesterol)—are continuous, and the missing percentages are relatively low. Therefore, I will apply mean imputation for these columns. For the categorical variable fbs (fasting blood sugar), I will use mode imputation to handle the missing data.
+While XGBoost can handle missing values internally, as mentioned earlier, it's generally good practice to address missing values during the data preprocessing stage. In our case, the two columns with missing values—trestbps (resting blood pressure) and chol (cholesterol)—are continuous, and the missing percentages are relatively low. Therefore, I will apply mean imputation for these columns. For the categorical variable 'fbs' (fasting blood sugar), I will use mode imputation to handle the missing data.
 
 ```ruby
 
@@ -327,7 +328,8 @@ data['fbs'].fillna(fbs_mode, inplace=True)
 ```
 
 **4. Handling of Outliers**
-While GBT algorithms are generally robust to outliers, especially when compared to linear models, extreme outliers can still affect performance by creating overly specific splits. It’s important to note that when discussing outliers, the focus is primarily on continuous predictors, not categorical ones. To identify outliers, I will use the Interquartile Range (IQR) method. Outliers are values that fall below Q1 - 1.5 * IQR or above Q3 + 1.5 * IQR, where Q1 is the first quartile and Q3 is the third quartile. After identifying the outliers, I will use boxplots to visualize them.
+
+While GBT algorithms are generally robust to outliers, especially when compared to linear models, extreme outliers can still affect performance by inducing overly specific tree splits. It’s important to note that when discussing outliers, the focus is primarily on continuous predictors, not categorical ones. To identify outliers, I will use the Interquartile Range (IQR) method. Outliers are values that fall below Q1 - 1.5 * IQR or above Q3 + 1.5 * IQR, where Q1 is the first quartile and Q3 is the third quartile. After identifying the outliers, I will use boxplots to visualize them.
 
 ```ruby
 
@@ -364,19 +366,22 @@ for column in columns_to_check:
 
 ```
 
-The output indicates zero outliers for age, 28 outliers for trestbps, 185 for chol, 2 for thalch, and 0 for num. The variable with the highest number of outliers is chol (cholesterol). The rest are negligible. I decided not to modify the outliers in cholesterol levels, as the data realistically reflects people at risk for heart disease—a significant number of them would have extremely high cholesterol levels (as shown in the box plot below). When handling outliers in your own project, you should consider whether to address them based on previous literature or the objectives of your project. Let these guide your decision.
+The output indicates zero outliers for 'age', 28 outliers for 'trestbps', 185 for 'chol', 2 for 'thalch', and 0 for 'num'. The variable with the highest number of outliers is chol (cholesterol). The rest are negligible. I decided not to modify the outliers in cholesterol levels, as the data realistically reflects people at risk for heart disease—a significant number of them would have extremely high cholesterol levels (as shown in the box plot below). When handling outliers in your own project, you should consider whether to address them based on previous literature or the objectives of your project. 
 
 
 
 ![Screenshot 2024-09-17 at 4 22 22 PM](https://github.com/user-attachments/assets/3a76a2d2-b95a-4dbc-aa56-9bdf332d0599)
 
 **5. Sufficient Sample Size**
+
 While GBTs can perform well even with smaller datasets, having a sufficient sample size is crucial for building robust models. Extremely small sample sizes can lead to overfitting, whereas larger datasets generally benefit from the boosting process, improving model accuracy. In our case, the dataset is on the smaller side. To prevent overfitting, I will adjust and fine-tune certain parameters, as you’ll see later.
 
 **6. Feature Scaling** 
+
 Unlike other algorithms, such as KNN, GBT models do not require feature scaling (e.g., standardization or normalization) because they are based on decision trees, which split data based on feature values rather than their magnitudes. However, scaling might still be useful when features have vastly different ranges, as it can affect interpretability or influence the importance of certain features in the model.
 
 **7. Feature Engineering**
+
 Like other algorithms, GBT models can benefit from feature engineering, where new features are created to capture non-linear relationships or interactions between variables. These newly created variables should be informed by previous literature or rigorous concepts. Since I am not a heart disease researcher, I will skip the feature engineering process for now and focus solely on the existing variables.
 
 **8. Class Imbalance**
@@ -387,6 +392,7 @@ Class imbalance for predictors is typically not a concern. Features can have var
 
 
 **9. Data Type**
+
 XGBoost and most machine learning algorithms require numerical input data. In this dataset, after applying one-hot encoding, several variables are coded as boolean values. I will convert these binary boolean variables into numerical binary format (e.g., 0 and 1) before using them in XGBoost.
 
 ```ruby
@@ -496,9 +502,6 @@ This same process is repeated for all 64 hyperparameter combinations. In total, 
 # Fit the model using GridSearchCV
 grid_search.fit(X_train, y_train)
 
-# Get the best parameters and model
-best_params = grid_search.best_params_
-best_model = grid_search.best_estimator_
 ```
 4. Then, I get the best parameters and model
 ```ruby
@@ -512,59 +515,52 @@ I found that the best parameters are as follows: {'learning_rate': 0.05, 'max_de
 5. Now that we have the best parameter estimates for our training data, let's evaluate the model built using the best parameters found by GridSearchCV. First, I will evaluate the model on the training data to check for any signs of potential overfitting. Then, I will assess the model's performance on the test set to determine how well it generalizes to unseen data.
 
 ```ruby
-best_params = grid_search.best_params_
-best_model = grid_search.best_estimator_
-
-print(f"Best parameters: {best_params}")
+y_pred_train = best_model.predict(X_train)
+y_pred_test = best_model.predict(X_test)
 ```
 
 6. Let's take a look at the performance matrix.
 ```ruby
-best_params = grid_search.best_params_
-best_model = grid_search.best_estimator_
 
-print(f"Best parameters: {best_params}")
+train_mse = mean_squared_error(y_train, y_pred_train)
+test_mse = mean_squared_error(y_test, y_pred_test)
+train_r2 = r2_score(y_train, y_pred_train)
+test_r2 = r2_score(y_test, y_pred_test)
+
+print(f"Training MSE: {train_mse:.4f}, R2: {train_r2:.4f}")
+print(f"Testing MSE: {test_mse:.4f}, R2: {test_r2:.4f}")
 ```
 
-In the code snippet above, train_mse and test_mse represent the Mean Squared Error (MSE) on the training and test sets, respectively. A significant difference between train_mse and test_mse might indicate overfitting. Additionally, train_r2 and test_r2 represent the R-squared scores for the training and test sets, respectively. Ideally, these R-squared scores should be reasonably close, with higher values indicating that the model explains a large portion of the variance in the data.
+In the code snippet above,  train_mse and test_mse represent the MSE on the training and test sets, respectively. A significant difference between train_mse and test_mse might indicate overfitting. Additionally, train_r2 and test_r2 represent the R-squared scores for the training and test sets, respectively. Ideally, these R-squared scores should be reasonably close, with higher values indicating that the model explains a large portion of the variance in the data.
 
 7. Now let's interpret the findings. I obtained the following results:
 
-    Training MSE: 0.7160
-    Training R²: 0.4508
-    Testing MSE: 0.7621
-    Testing R²: 0.4131
+* Training MSE: 0.7160
+* Training R²: 0.4508
+* Testing MSE: 0.7621
+* Testing R²: 0.4131
 
 The Training MSE (0.7160) and Testing MSE (0.7621) are relatively close, indicating that the model performs similarly on both the training and test sets. Similarly, the Training R² (0.4508) and Testing R² (0.4131) are also close, suggesting that the model has not memorized the training data excessively, which would be a sign of overfitting.
 
-However, the R² values for both training and testing sets are relatively low, indicating that the model is not capturing a significant portion of the variance in the data. Based on these performance metrics, it’s likely that the current model is underfitting. This isn't surprising, as the model might be too simple to capture the underlying patterns in the data.
-
-The close MSE and R² values between training and testing imply that the model is not overfitting but rather underfitting. If overfitting were an issue, we could apply techniques such as using subsamples of features and training sets, similar to the concept of bagging. However, this is not the case here.
+However, the R² values for both training and testing sets are relatively low, indicating that the model is not capturing a significant portion of the variance in the data. Based on these performance metrics, it’s likely that the current model is underfitting. This isn't surprising, as with not too many predictors, the model might be too simple to capture the underlying patterns in the data. If overfitting were an issue, we could apply techniques such as using subsamples of features and training sets, similar to the concept of bagging. However, this is not the case here.
 
 ### Model Improvement 
 
-According to  the results, if things like this happen to your personal projects, there are a few things that you can do.
+Based on the findings, if you encounter similar issues in your personal projects, there are a few strategies you can apply:
 
-1. Feature Engineering and Hyperparameter Tuning
+**1. Feature Engineering and Hyperparameter Tuning**
 
-You can try expanding the range of the max_depth or n_estimators parameters in the grid search function, which may allow to the functiion find better combinations of parameters.
+You can try expanding the range of parameters, such as *max_depth* or *n_estimators*, in the grid search function. This may allow the function to find better combinations of hyperparameters and improve model performance.
 
-2. Use More Advanced or Alternative Models
-
-Based on the results, if you encounter similar issues in your personal projects, there are a few strategies you can apply:
-1. Feature Engineering and Hyperparameter Tuning
-
-You can try expanding the range of parameters, such as max_depth or n_estimators, in the grid search function. This may allow the function to find better combinations of hyperparameters and improve model performance.
-
-2. Use More Advanced or Alternative Models
+**2. Use More Advanced or Alternative Models**
 
 Consider using more advanced models or algorithms that might better capture the relationships in your data. Options include gradient boosting with additional hyperparameters, or alternative algorithms like Random Forests, Support Vector Machines, or Neural Networks, depending on the nature of your dataset. For this demo, I will convert the outcome variable from continuous to binary to see if the model improves. I will recode the target column num into 0 and 1. Rows coded as 0 (no heart disease) will remain 0 for the new variable. Rows coded as 1 (mild heart disease), 2 (moderate heart disease), 3 (severe heart disease), or 4 (critical heart disease) will all be coded as 1. The reasons for this approach are as follows:
 
-* Nature of the Target Variable: When treating num as a continuous variable, the model attempts to predict specific values (0, 1, 2, 3, 4), implying varying levels of severity in heart disease. However, these ordinal levels do not necessarily have a linear or direct relationship that a regression model can easily capture. The differences between these classes are not continuous or evenly spaced.
+* **Nature of the Target Variable**: When treating *num* as a continuous variable, the model attempts to predict specific values (0, 1, 2, 3, 4), implying varying levels of severity in heart disease. However, these ordinal levels do not necessarily have a linear or direct relationship that a regression model can easily capture. The differences between these classes are not continuous or evenly spaced.
 
-* Classification is More Suitable for Imbalanced Data: When num is treated as continuous, the model might struggle with subtle distinctions between closely related values (e.g., 1 vs. 2 or 3 vs. 4). In contrast, classification can more easily differentiate between distinct classes (0 vs. 1), especially when the classes have different distributions.
+* **Classification is More Suitable for Imbalanced Data**: When num is treated as continuous, the model might struggle with subtle distinctions between closely related values (e.g., 1 vs. 2 or 3 vs. 4). In contrast, classification can more easily differentiate between distinct classes (0 vs. 1), especially when the classes have different distributions.
 
-* Practicality for Prevention and Treatment: In practice, treating the outcome as a binary variable (having or not having heart disease) is more meaningful for creating effective prevention and treatment plans, rather than trying to predict the chance of heart disease along a spectrum.
+* **Practicality for Prevention and Treatment**: In practice, treating the outcome as a binary variable (having or not having heart disease) is more meaningful for creating effective prevention and treatment plans, rather than trying to predict the chance of heart disease along a spectrum.
   
 ```ruby
 # Recode the 'num' column: 0 stays as 0, 1, 2, 3, 4 are recoded to 1
@@ -625,7 +621,7 @@ print(f"Best parameters: {best_params}")
 ```
 
 The output indicates that the following as the best parameters: {'learning_rate': 0.01, 'max_depth': 3, 'n_estimators': 200}
-4. Now, let’s evaluate the model. For classification tasks, the evaluation metrics differ from those used in regression. Instead of using MSE, we will rely on accuracy and the confusion matrix (as I’ve discussed in a previous post) to assess how well the model performs.
+4. Now, let’s evaluate the model. For classification tasks, the evaluation metrics differ from those used in regression. Instead of using MSE, we will rely on accuracy and the confusion matrix (as I’ve discussed in my previous [post](https://github.com/KayChansiri/Demo_Performance_Metrics)) to assess how well the model performs.
 ```ruby
 #Evaluate the best model on the training and test sets
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -660,13 +656,13 @@ In the classification report, for class 1 (heart disease), the precision is 0.87
 
 The confusion matrix provides further insight:
 
-True Negatives (TN): These are the cases where the model correctly predicted "no heart disease." For example, out of all the people who actually don't have heart disease, the model correctly identified 75 of them.
+**True Negatives (TN)**: These are the cases where the model correctly predicted "no heart disease." For example, out of all the people who actually don't have heart disease, the model correctly identified 75 of them.
 
-False Negatives (FN): These are the cases where the model incorrectly predicted "no heart disease" when the person actually has it. For example, 34 people who actually have heart disease were mistakenly classified as not having it by the model.
+**False Negatives (FN)**: These are the cases where the model incorrectly predicted "no heart disease" when the person actually has it. For example, 34 people who actually have heart disease were mistakenly classified as not having it by the model.
 
-True Positives (TP): These are the cases where the model correctly predicted "heart disease." In this case, 87 people who actually have heart disease were correctly identified by the model.
+**True Positives (TP)**: These are the cases where the model correctly predicted "heart disease." In this case, 87 people who actually have heart disease were correctly identified by the model.
 
-False Positives (FP): These are the cases where the model incorrectly predicted "heart disease" for people who don’t actually have it. In this instance, 22 people who don’t have heart disease were mistakenly identified as having it.
+**False Positives (FP)**: These are the cases where the model incorrectly predicted "heart disease" for people who don’t actually have it. In this instance, 22 people who don’t have heart disease were mistakenly identified as having it.
 
 ### Feature Importance 
 Now that we know the classification model performs better than the regression one, let’s explore feature importance. This will help us identify which variables have the most influence on the likelihood of someone having heart disease.
@@ -700,5 +696,5 @@ The output shows that cp_asymptomatic (asymptomatic chest pain) is the most sign
 
 Less influential features include age and the dataset origins like dataset_Switzerland and dataset_Hungary. Some features, such as dataset_Cleveland, fbs (fasting blood sugar), and certain ECG results, have zero importance, suggesting they do not add any predictive value to the model.
 
-For the full code snippets, please feel free to visit my GitHub page here.
+
 
